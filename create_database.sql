@@ -11,7 +11,7 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,N
 -- -----------------------------------------------------
 -- Schema mydb
 -- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `mydb` DEFAULT CHARACTER SET utf8 ;
+CREATE SCHEMA IF NOT EXISTS `mydb` ;
 USE `mydb` ;
 
 -- -----------------------------------------------------
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`class_enrollment` (
   INDEX `fk_classes_has_member_member1_idx` (`member_id` ASC) VISIBLE,
   INDEX `fk_classes_has_member_classes1_idx` (`class_id` ASC) VISIBLE,
   PRIMARY KEY (`class_enrollment_id`),
-  UNIQUE INDEX `uq_class_member` (`class_id`, `member_id`),
+  UNIQUE INDEX `uq_class_member` (`class_id`,`member_id`),
   CONSTRAINT `fk_classes_has_member_classes1`
     FOREIGN KEY (`class_id`)
     REFERENCES `mydb`.`classes` (`class_id`)
@@ -196,9 +196,9 @@ CREATE TABLE IF NOT EXISTS `mydb`.`payments` (
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `chk_payment_ref` CHECK (
-    (member_membership_id IS NOT NULL AND class_enrollment_id IS NULL)
-    OR
-    (member_membership_id IS NULL AND class_enrollment_id IS NOT NULL)
+	(member_membership_id IS NOT NULL AND class_enrollment_id IS NULL)
+	OR
+	(member_membership_id IS NULL AND class_enrollment_id IS NOT NULL)
   ))
 ENGINE = InnoDB;
 
@@ -237,6 +237,190 @@ CREATE TABLE IF NOT EXISTS `mydb`.`maintenance` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
+USE `mydb` ;
+
+-- -----------------------------------------------------
+-- Placeholder table for view `mydb`.`active_memberships`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`active_memberships` (`member_id` INT, `name` INT, `email` INT, `membership_name` INT, `start_date` INT, `end_date` INT);
+
+-- -----------------------------------------------------
+-- Placeholder table for view `mydb`.`class_enrollment_summary`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`class_enrollment_summary` (`class_id` INT, `class_name` INT, `scheduled_time` INT, `capacity` INT, `enrolled_count` INT, `spots_remaining` INT);
+
+-- -----------------------------------------------------
+-- Placeholder table for view `mydb`.`member_payment_details`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`member_payment_details` (`member_name` INT, `payment_id` INT, `amount` INT, `payment_type` INT, `status` INT, `membership_name` INT, `class_name` INT);
+
+-- -----------------------------------------------------
+-- procedure enroll_member_in_class
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE PROCEDURE enroll_member_in_class (
+    IN p_member_id INT,
+    IN p_class_id INT
+)
+BEGIN
+    DECLARE current_count INT;
+    DECLARE max_capacity INT;
+    DECLARE already_enrolled INT;
+
+    -- Check if already enrolled
+    SELECT COUNT(*) INTO already_enrolled
+    FROM class_enrollment
+    WHERE member_id = p_member_id AND class_id = p_class_id;
+
+    IF already_enrolled > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Member already enrolled in this class';
+    END IF;
+
+    -- Get current enrollment count
+    SELECT COUNT(*) INTO current_count
+    FROM class_enrollment
+    WHERE class_id = p_class_id;
+
+    -- Get class capacity
+    SELECT capacity INTO max_capacity
+    FROM classes
+    WHERE class_id = p_class_id;
+
+    -- Check if class is full
+    IF current_count >= max_capacity THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Class is full';
+    ELSE
+        -- Insert enrollment
+        INSERT INTO class_enrollment (
+            class_id,
+            member_id,
+            signup_date,
+            attendance_status
+        )
+        VALUES (
+            p_class_id,
+            p_member_id,
+            CURDATE(),
+            'registered'
+        );
+    END IF;
+
+END$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
+-- procedure add_membership_payment
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE PROCEDURE add_membership_payment (
+    IN p_member_id INT,
+    IN p_membership_id INT,
+    IN p_amount DECIMAL(8,2)
+)
+BEGIN
+    DECLARE mm_id INT;
+
+    -- Get active membership record
+    SELECT member_membership_id INTO mm_id
+    FROM member_membership
+    WHERE member_id = p_member_id
+      AND membership_id = p_membership_id
+      AND (end_date IS NULL OR end_date >= CURDATE())
+    LIMIT 1;
+
+    IF mm_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No active membership found';
+    ELSE
+        INSERT INTO payments (
+            member_id,
+            amount,
+            payment_date,
+            payment_method,
+            status,
+            payment_type,
+            member_membership_id
+        )
+        VALUES (
+            p_member_id,
+            p_amount,
+            CURDATE(),
+            'card',
+            'completed',
+            'membership',
+            mm_id
+        );
+    END IF;
+
+END;$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
+-- View `mydb`.`active_memberships`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `mydb`.`active_memberships`;
+USE `mydb`;
+CREATE  OR REPLACE VIEW `active_memberships` AS
+SELECT
+	m.member_id,
+	m.name,
+    m.email,
+    ms.membership_name,
+    mm.start_date,
+    mm.end_date
+FROM 
+	member m
+JOIN member_membership mm ON m.member_id = mm.member_id
+JOIN memberships ms ON mm.membership_id = ms.membership_id
+WHERE mm.end_date IS NULL OR mm.end_date >= CURDATE();
+
+-- -----------------------------------------------------
+-- View `mydb`.`class_enrollment_summary`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `mydb`.`class_enrollment_summary`;
+USE `mydb`;
+CREATE  OR REPLACE VIEW `class_enrollment_summary` AS
+SELECT
+	c.class_id,
+    ct.class_name,
+    c.scheduled_time,
+    c.capacity,
+    COUNT(ce.member_id) AS enrolled_count,
+    (c.capacity - COUNT(ce.member_id)) AS spots_remaining
+FROM classes c
+JOIN class_type ct ON c.class_type_id = ct.class_type_id
+LEFT JOIN class_enrollment ce ON c.class_id = ce.class_id
+GROUP BY c.class_id, ct.class_name, c.scheduled_time, c.capacity;
+
+-- -----------------------------------------------------
+-- View `mydb`.`member_payment_details`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `mydb`.`member_payment_details`;
+USE `mydb`;
+CREATE  OR REPLACE VIEW `member_payment_details` AS
+SELECT
+	m.name AS member_name,
+    p.payment_id,
+    p.amount,
+    p.payment_type,
+    p.status,
+    ms.membership_name,
+    ct.class_name
+FROM payments p
+JOIN member m ON p.member_id = m.member_id
+LEFT JOIN member_membership mm ON p.member_membership_id = mm.member_membership_id
+LEFT JOIN memberships ms ON mm.membership_id = ms.membership_id
+LEFT JOIN class_enrollment ce ON p.class_enrollment_id = ce.class_enrollment_id
+LEFT JOIN classes c ON ce.class_id = c.class_id
+LEFT JOIN class_type ct ON c.class_type_id = ct.class_type_id;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
