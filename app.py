@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 import mysql.connector
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -19,6 +19,12 @@ db = mysql.connector.connect(
 )
 
 cursor = db.cursor(dictionary=True)
+
+def get_members():
+    cursor.execute("SELECT * FROM member")
+    result = cursor.fetchall()
+    return result
+
 
 @app.route('/')
 def home():
@@ -45,11 +51,28 @@ def add_member():
         return "Member added successfuly! <a href='/members'>Go back</a>"
     return render_template('add_member.html', name='Add Member')
 
-# READ
-def get_members():
-    cursor.execute("SELECT * FROM member")
-    result = cursor.fetchall()
-    return result
+
+@app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
+def edit_member(member_id):
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        
+        query = """
+                UPDATE member
+                SET name = %s, email = %s, phone = %s
+                WHERE member_id = %s
+                """
+        cursor.execute(query, (name, email,phone, member_id))
+        db.commit()
+        return redirect('/members')
+    
+    cursor.execute("SELECT * FROM member WHERE member_id = %s", (member_id,))
+    member = cursor.fetchone()
+    return render_template('edit_member.html', name='Edit Member', member=member)
+
+
 
 
 
