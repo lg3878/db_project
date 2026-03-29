@@ -4,8 +4,58 @@
     <h1>Members</h1>
 
     
-    <h2>Current Members</h2>
-    {% include "table.html" %}
+    <h2>All Members</h2>
+    <table>
+    <thead>
+        <tr>
+            {% for col in all_members_rows[0].keys() %}
+                <th>{{ col.replace('_', ' ').title() }}</th>
+            {% endfor %}
+        <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in all_members_rows %}
+        <tr>
+            {% for value in row.values() %}
+                <td>{{ value if value is not none else "N/A" }}</td>
+            {% endfor %}
+            <td>
+            <a href="/edit_member/{{ row['member_id'] }}">Edit</a>
+            <a href="/delete_member/{{ row['member_id'] }}" onclick="return confirm('Are you sure you want to delete this member?');">Delete</a>
+        </td>
+        </tr>
+        {% endfor %}
+        
+    </tbody>
+</table>
+
+    <h2>Active Members</h2>
+    <table>
+        <thead>
+            <tr>
+                {% for col in active_members_rows[0].keys() %}
+                    <th>{{ col.replace('_', ' ').title() }}</th>
+                {% endfor %}
+            <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in active_members_rows %}
+            <tr>
+                {% for value in row.values() %}
+                    <td>{{ value if value is not none else "N/A" }}</td>
+                {% endfor %}
+                <td>
+                <a href="/edit_member/{{ row['member_id'] }}">Edit</a>
+                <a href="/delete_member/{{ row['member_id'] }}" onclick="return confirm('Are you sure you want to delete this member?');">Delete</a>
+            </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+
 
     <h2>Add Member</h2>
 <a href="/add_member">Add Member</a>

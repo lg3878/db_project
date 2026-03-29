@@ -20,11 +20,17 @@ db = mysql.connector.connect(
 
 cursor = db.cursor(dictionary=True)
 
-def get_members():
+def get_active_members():
+    
+    cursor.execute("SELECT * FROM active_memberships") # utilizing one of the views created for the project
+    result = cursor.fetchall()
+    print(result)
+    return result
+
+def get_all_members():
     cursor.execute("SELECT * FROM member")
     result = cursor.fetchall()
     return result
-
 
 @app.route('/')
 def home():
@@ -34,8 +40,9 @@ def home():
 #READ
 @app.route('/members')
 def members():
-    data = get_members()
-    return render_template('members.html', name="Members Table", rows=data)
+    all_members = get_all_members()
+    active_members = get_active_members()
+    return render_template('members.html', name="Members Table", all_members_rows=all_members, active_members_rows=active_members)
 
 
 #CREATE
@@ -87,6 +94,7 @@ def delete_member(member_id):
         return f"Error deleting mmeber: {str(e)} <a href='mmembers'>Go Back</a>"
     
     return redirect('/members')
+
 
 
 if __name__=="__main__":
