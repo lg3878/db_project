@@ -30,11 +30,13 @@ def get_members():
 def home():
     return render_template('index.html', name="Gym Management System")
 
+
 #READ
 @app.route('/members')
 def members():
     data = get_members()
     return render_template('members.html', name="Members Table", rows=data)
+
 
 #CREATE
 @app.route('/add_member', methods=['GET','POST'])
@@ -52,6 +54,7 @@ def add_member():
     return render_template('add_member.html', name='Add Member')
 
 
+#UPDATE
 @app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
 def edit_member(member_id):
     if request.method == 'POST':
@@ -73,8 +76,19 @@ def edit_member(member_id):
     return render_template('edit_member.html', name='Edit Member', member=member)
 
 
+#DELETE
+@app.route('/delete_member/<int:member_id>')
+def delete_member(member_id):
 
+    try:
+        cursor.execute("DELETE FROM member WHERE member_id = %s", (member_id,))
+        db.commit()
+    except Exception as e:
+        return f"Error deleting mmeber: {str(e)} <a href='mmembers'>Go Back</a>"
+    
+    return redirect('/members')
 
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
+    cursor.close()
