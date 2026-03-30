@@ -1,0 +1,24 @@
+{% extends 'layout.html' %}
+{% block content %}
+    <h2>Assign Membership</h2>
+
+    <form method="POST">
+        <label>Membership:</label>
+        <select name="membership_id" required>
+            {% for m in memberships %}
+                <option value="{{ m.membership_id }}">
+                    {{ m.membership_name }} (${{ m.price }})
+                </option>
+            {% endfor %}
+        </select>
+        <br><br>
+
+        <label>Start Date:</label><br>
+        <input type="date" name="start_date" required>
+        <br><br>
+
+        <button type="submit">Assign</button>
+    </form>
+
+    <a href="/members">Back</a>
+{% endblock %}

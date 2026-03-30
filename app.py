@@ -24,7 +24,6 @@ def get_active_members():
     
     cursor.execute("SELECT * FROM active_memberships") # utilizing one of the views created for the project
     result = cursor.fetchall()
-    print(result)
     return result
 
 def get_all_members():
@@ -37,7 +36,6 @@ def home():
     return render_template('index.html', name="Gym Management System")
 
 
-#READ
 @app.route('/members')
 def members():
     all_members = get_all_members()
@@ -45,7 +43,6 @@ def members():
     return render_template('members.html', name="Members Table", all_members_rows=all_members, active_members_rows=active_members)
 
 
-#CREATE
 @app.route('/add_member', methods=['GET','POST'])
 def add_member():
     if request.method == 'POST':
@@ -60,8 +57,6 @@ def add_member():
         return "Member added successfuly! <a href='/members'>Go back</a>"
     return render_template('add_member.html', name='Add Member')
 
-
-#UPDATE
 @app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
 def edit_member(member_id):
     if request.method == 'POST':
@@ -83,7 +78,6 @@ def edit_member(member_id):
     return render_template('edit_member.html', name='Edit Member', member=member)
 
 
-#DELETE
 @app.route('/delete_member/<int:member_id>')
 def delete_member(member_id):
 
@@ -94,6 +88,40 @@ def delete_member(member_id):
         return f"Error deleting mmeber: {str(e)} <a href='mmembers'>Go Back</a>"
     
     return redirect('/members')
+
+
+@app.route('/assign_membership/<int:member_id>', methods=['GET', 'POST'])
+def assign_membership(member_id):
+    
+    if request.method == 'POST':
+        membership_id = request.form.get('membership_id')
+        start_date = request.form.get('start_date')
+        
+        cursor.execute("SELECT duration_months FROM memberships WHERE membership_id = %s", (membership_id,))
+        duration = cursor.fetchone()['duration_months']
+        query = """
+        INSERT INTO member_membership (member_id, membership_id, start_date, end_date)
+        VALUES (%s, %s, %s, DATE_ADD(%s, INTERVAL %s MONTH))
+        """
+        cursor.execute(query, (member_id, membership_id, start_date, start_date, duration))
+        db.commit()
+
+        return redirect('/members')
+    cursor.execute("SELECT * FROM memberships")
+    memberships = cursor.fetchall()
+
+    return render_template('assign_membership.html', name='Assign Membership', member_id=member_id, memberships=memberships)
+
+
+def get_memberships():
+    cursor.execute("SELECT * FROM memberships")
+    result = cursor.fetchall()
+    return result
+
+@app.route('/memberships')
+def memberships():
+    memberships = get_memberships()
+    return render_template('memberships.html', name='Memberships', rows=memberships)
 
 
 

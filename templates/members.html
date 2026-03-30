@@ -23,6 +23,7 @@
             <td>
             <a href="/edit_member/{{ row['member_id'] }}">Edit</a>
             <a href="/delete_member/{{ row['member_id'] }}" onclick="return confirm('Are you sure you want to delete this member?');">Delete</a>
+            <a href="/assign_membership/{{ row['member_id'] }}">Assign Membership</a>
         </td>
         </tr>
         {% endfor %}
