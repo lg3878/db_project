@@ -83,6 +83,31 @@ def delete_member(member_id):
     
     return redirect('/members')
 
+@app.route('/member_page/<int:member_id>')
+def member_page(member_id):
+
+    query = """
+    SELECT
+        m.name,
+        m.phone,
+        m.email,
+        m.status,
+        ms.membership_name,
+        ms.price,
+        mm.start_date,
+        mm.end_date
+    FROM member m 
+    JOIN member_membership mm ON m.member_id = mm.member_id
+    JOIN memberships ms ON mm.membership_id = ms.membership_id
+    WHERE m.member_id = %s;
+    """
+
+    cursor.execute(query, (member_id,))
+    rows = cursor.fetchall()
+
+    if rows:
+        return render_template('member_page.html', member_data=rows)
+    
 
 @app.route('/assign_membership/<int:member_id>', methods=['GET', 'POST'])
 def assign_membership(member_id):

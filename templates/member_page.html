@@ -1,0 +1,27 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+    <h1>Member: {{ member_data[0].name }}</h1>
+    <p>Email: {{ member_data[0].email }}</p>
+    <p>Phone: {{ member_data[0].phone | default('N/A', true) }}</p>
+    <p>Status: {{ member_data[0].status }}</p>
+
+    <h2>Membership History</h2>
+    <table>
+        <tr>
+            <th>Tier</th>
+            <th>Price</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+        </tr>
+        {% for record in member_data %}
+        <tr>
+            <td>{{ record.membership_name }}</td>
+            <td>${{ record.price }}</td>
+            <td>{{ record.start_date }}</td>
+            <td>{{ record.end_date or 'Active' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+{% endblock %}
