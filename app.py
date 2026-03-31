@@ -26,6 +26,8 @@ def get_all_members():
     result = cursor.fetchall()
     return result
 
+
+
 @app.route('/')
 def home():
     return render_template('index.html', name="Gym Management System")
@@ -48,7 +50,12 @@ def add_member():
         cursor.execute(query, (name, email,phone))
         db.commit()
 
-        return "Member added successfuly! <a href='/members'>Go back</a>"
+        # get member id
+        cursor.execute("""
+            SELECT member_id FROM member WHERE name = %s
+        """, (name,))
+        member_id = cursor.fetchone()['member_id']
+        return f"Member added successfuly! <a href='/assign_membership/{member_id}'>Assign Membership</a>"
     return render_template('add_member.html', name='Add Member')
 
 @app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
@@ -155,6 +162,15 @@ def assign_membership(member_id):
 
 @app.route('/deactivate_member/<int:member_id>')
 def deactivate_member(member_id):
+
+    # end active membership
+    cursor.execute("""
+        UPDATE member_membership SET end_date = CURDATE()
+        WHERE member_id = %s 
+        AND (end_date IS NULL OR end_date >= CURDATE())
+    """, (member_id,))
+
+    # set member to inactive
     cursor.execute("""
     UPDATE member
     SET status = 'Inactive'
@@ -174,7 +190,8 @@ def activate_member(member_id):
     """, (member_id,))
     
     db.commit()
-    return redirect('/members')
+    return redirect(f'/assign_membership/{member_id}')
+
 
 def get_memberships():
     cursor.execute("SELECT * FROM memberships")
