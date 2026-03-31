@@ -20,11 +20,6 @@ db = mysql.connector.connect(
 
 cursor = db.cursor(dictionary=True)
 
-def get_active_members():
-    
-    cursor.execute("SELECT * FROM active_memberships") # utilizing one of the views created for the project
-    result = cursor.fetchall()
-    return result
 
 def get_all_members():
     cursor.execute("SELECT * FROM member")
@@ -39,8 +34,7 @@ def home():
 @app.route('/members')
 def members():
     all_members = get_all_members()
-    active_members = get_active_members()
-    return render_template('members.html', name="Members Table", all_members_rows=all_members, active_members_rows=active_members)
+    return render_template('members.html', name="Members Table", all_members_rows=all_members)
 
 
 @app.route('/add_member', methods=['GET','POST'])
@@ -97,6 +91,25 @@ def assign_membership(member_id):
         membership_id = request.form.get('membership_id')
         start_date = request.form.get('start_date')
         
+        # checking for active membership
+        check_query = """
+        SELECT COUNT(*) AS count
+        FROM member_membership
+        WHERE member_id = %s
+        AND (end_date IS NULL OR end_date >= CURDATE())
+        """
+        cursor.execute(check_query, (member_id,))
+        result = cursor.fetchone()
+
+        if result['count'] > 0:
+            # auto ending old membership
+            cursor.execute("""
+            UPDATE member_membership
+            SET end_date = CURDATE()
+            WHERE member_id = %s
+            AND (end_date IS NULL OR end_date >= CURDATE())
+            """, (member_id,))
+
         cursor.execute("SELECT duration_months FROM memberships WHERE membership_id = %s", (membership_id,))
         duration = cursor.fetchone()['duration_months']
         query = """
@@ -113,6 +126,17 @@ def assign_membership(member_id):
     return render_template('assign_membership.html', name='Assign Membership', member_id=member_id, memberships=memberships)
 
 
+@app.route('/deactivate_member/<int:member_id>')
+def deactivate_member(member_id):
+    cursor.execute("""
+    UPDATE member
+    SET status = 'Inactive'
+    WHERE member_id = %s
+    """, (member_id,))
+    
+    db.commit()
+    return redirect('/members')
+
 def get_memberships():
     cursor.execute("SELECT * FROM memberships")
     result = cursor.fetchall()
@@ -122,6 +146,7 @@ def get_memberships():
 def memberships():
     memberships = get_memberships()
     return render_template('memberships.html', name='Memberships', rows=memberships)
+
 
 
 
