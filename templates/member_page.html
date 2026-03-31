@@ -24,4 +24,19 @@
         {% endfor %}
     </table>
 
+    
+    <div class="actions">
+        <h2>Actions</h2>
+        <a href="/edit_member/{{ member_data[0].member_id }}">Edit</a>
+        <a href="/delete_member/{{ member_data[0].member_id }}" onclick="return confirm('Are you sure you want to delete this member?');">Delete</a>
+        <a href="/assign_membership/{{ member_data[0].member_id }}">Assign Membership</a>
+            {% if member_data[0].status == 'Active' %}
+        <a href="/deactivate_member/{{ member_data[0].member_id }}" onclick=
+            "return confirm('Deactivate this member?');">Deactivate</a>
+            {% else %}
+            <a href="/activate_member/{{ member_data[0].member_id }}" onclick="return confirm('Activate this member?');">Activate</a>
+            {% endif %}
+    </div>
+
+
 {% endblock %}

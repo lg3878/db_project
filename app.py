@@ -79,7 +79,8 @@ def delete_member(member_id):
         cursor.execute("DELETE FROM member WHERE member_id = %s", (member_id,))
         db.commit()
     except Exception as e:
-        return f"Error deleting mmeber: {str(e)} <a href='mmembers'>Go Back</a>"
+        return f"Cannot delete member. <a href='members'>Go Back</a>"
+        # Need to Add ON DELETE CASCADE to schema
     
     return redirect('/members')
 
@@ -92,6 +93,7 @@ def member_page(member_id):
         m.phone,
         m.email,
         m.status,
+        m.member_id,
         ms.membership_name,
         ms.price,
         mm.start_date,
@@ -157,6 +159,18 @@ def deactivate_member(member_id):
     UPDATE member
     SET status = 'Inactive'
     WHERE member_id = %s
+    """, (member_id,))
+    
+    db.commit()
+    return redirect('/members')
+
+
+@app.route('/activate_member/<int:member_id>')
+def activate_member(member_id):
+    cursor.execute("""
+        UPDATE member
+        SET status = 'Active'
+        WHERE member_id = %s
     """, (member_id,))
     
     db.commit()
