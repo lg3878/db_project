@@ -50,11 +50,8 @@ def add_member():
         cursor.execute(query, (name, email,phone))
         db.commit()
 
-        # get member id
-        cursor.execute("""
-            SELECT member_id FROM member WHERE name = %s
-        """, (name,))
-        member_id = cursor.fetchone()['member_id']
+    
+        member_id = cursor.lastrowid
         return f"Member added successfuly! <a href='/assign_membership/{member_id}'>Assign Membership</a>"
     return render_template('add_member.html', name='Add Member')
 
