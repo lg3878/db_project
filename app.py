@@ -80,11 +80,26 @@ def edit_member(member_id):
 def delete_member(member_id):
 
     try:
+        # delete payments related to member
+        cursor.execute("""
+            DELETE FROM payments WHERE member_id = %s
+        """, (member_id,))
+
+        # delete class enrollments
+        cursor.execute("""
+            DELETE FROM class_enrollment WHERE member_id = %s
+        """, (member_id,))
+
+        # DELETE memberships
+        cursor.execute("""
+            DELETE FROM member_membership WHERE member_id = %s
+        """, (member_id,))
+
+        # delete member
         cursor.execute("DELETE FROM member WHERE member_id = %s", (member_id,))
         db.commit()
     except Exception as e:
-        return f"Cannot delete member. <a href='members'>Go Back</a>"
-        # Need to Add ON DELETE CASCADE to schema
+        return f"Cannot delete member. <a href='/members'>Go Back</a>"
     
     return redirect('/members')
 
