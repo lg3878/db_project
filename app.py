@@ -27,7 +27,6 @@ def get_all_members():
     return result
 
 
-
 @app.route('/')
 def home():
     return render_template('index.html', name="Gym Management System")
@@ -54,6 +53,7 @@ def add_member():
         member_id = cursor.lastrowid
         return f"Member added successfuly! <a href='/assign_membership/{member_id}'>Assign Membership</a>"
     return render_template('add_member.html', name='Add Member')
+
 
 @app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
 def edit_member(member_id):
@@ -204,6 +204,10 @@ def activate_member(member_id):
     db.commit()
     return redirect(f'/assign_membership/{member_id}')
 
+
+"""
+Memberships table
+"""
 
 def get_memberships():
     cursor.execute("SELECT * FROM memberships")
