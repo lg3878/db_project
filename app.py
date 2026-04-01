@@ -18,12 +18,13 @@ db = mysql.connector.connect(
     database="mydb"
 )
 
-cursor = db.cursor(dictionary=True)
 
 
 def get_all_members():
+    cursor = db.cursor(dictionary=True)
     cursor.execute("SELECT * FROM member")
     result = cursor.fetchall()
+    cursor.close()
     return result
 
 
@@ -40,6 +41,7 @@ def members():
 
 @app.route('/add_member', methods=['GET','POST'])
 def add_member():
+    cursor = db.cursor(dictionary=True)
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
@@ -51,12 +53,15 @@ def add_member():
 
     
         member_id = cursor.lastrowid
+        cursor.close()
         return f"Member added successfuly! <a href='/assign_membership/{member_id}'>Assign Membership</a>"
+    cursor.close()
     return render_template('add_member.html', name='Add Member')
 
 
 @app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
 def edit_member(member_id):
+    cursor = db.cursor(dictionary=True)
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
@@ -69,16 +74,18 @@ def edit_member(member_id):
                 """
         cursor.execute(query, (name, email,phone, member_id))
         db.commit()
+        cursor.close()
         return redirect('/members')
     
     cursor.execute("SELECT * FROM member WHERE member_id = %s", (member_id,))
     member = cursor.fetchone()
+    cursor.close()
     return render_template('edit_member.html', name='Edit Member', member=member)
 
 
 @app.route('/delete_member/<int:member_id>')
 def delete_member(member_id):
-
+    cursor = db.cursor(dictionary=True)
     try:
         # delete payments related to member
         cursor.execute("""
@@ -99,13 +106,14 @@ def delete_member(member_id):
         cursor.execute("DELETE FROM member WHERE member_id = %s", (member_id,))
         db.commit()
     except Exception as e:
+        cursor.close()
         return f"Cannot delete member. <a href='/members'>Go Back</a>"
-    
+    cursor.close()
     return redirect('/members')
 
 @app.route('/member_page/<int:member_id>')
 def member_page(member_id):
-
+    cursor = db.cursor(dictionary=True)
     query = """
     SELECT
         m.name,
@@ -125,14 +133,16 @@ def member_page(member_id):
 
     cursor.execute(query, (member_id,))
     rows = cursor.fetchall()
-
+    cursor.close()
     if rows:
         return render_template('member_page.html', member_data=rows)
+    
+    return "Member not found <a href='/members'>Go back</a>"
     
 
 @app.route('/assign_membership/<int:member_id>', methods=['GET', 'POST'])
 def assign_membership(member_id):
-    
+    cursor = db.cursor(dictionary=True)
     if request.method == 'POST':
         membership_id = request.form.get('membership_id')
         start_date = request.form.get('start_date')
@@ -164,17 +174,17 @@ def assign_membership(member_id):
         """
         cursor.execute(query, (member_id, membership_id, start_date, start_date, duration))
         db.commit()
-
+        cursor.close()
         return redirect('/members')
     cursor.execute("SELECT * FROM memberships")
     memberships = cursor.fetchall()
-
+    cursor.close()
     return render_template('assign_membership.html', name='Assign Membership', member_id=member_id, memberships=memberships)
 
 
 @app.route('/deactivate_member/<int:member_id>')
 def deactivate_member(member_id):
-
+    cursor = db.cursor(dictionary=True)
     # end active membership
     cursor.execute("""
         UPDATE member_membership SET end_date = CURDATE()
@@ -190,11 +200,13 @@ def deactivate_member(member_id):
     """, (member_id,))
     
     db.commit()
+    cursor.close()
     return redirect('/members')
 
 
 @app.route('/activate_member/<int:member_id>')
 def activate_member(member_id):
+    cursor = db.cursor(dictionary=True)
     cursor.execute("""
         UPDATE member
         SET status = 'Active'
@@ -202,6 +214,7 @@ def activate_member(member_id):
     """, (member_id,))
     
     db.commit()
+    cursor.close()
     return redirect(f'/assign_membership/{member_id}')
 
 
@@ -210,8 +223,10 @@ Memberships table
 """
 
 def get_memberships():
+    cursor = db.cursor(dictionary=True)
     cursor.execute("SELECT * FROM memberships")
     result = cursor.fetchall()
+    cursor.close()
     return result
 
 @app.route('/memberships')
@@ -221,7 +236,5 @@ def memberships():
 
 
 
-
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
-    cursor.close()
