@@ -3,6 +3,7 @@ import mysql.connector
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+from mysql.connector import Error
 
 load_dotenv()
 DB_USERNAME = os.getenv("DB_USERNAME")
@@ -147,35 +148,40 @@ def assign_membership(member_id):
         membership_id = request.form.get('membership_id')
         start_date = request.form.get('start_date')
         
-        # checking for active membership
-        check_query = """
-        SELECT COUNT(*) AS count
-        FROM member_membership
-        WHERE member_id = %s
-        AND (end_date IS NULL OR end_date >= CURDATE())
-        """
-        cursor.execute(check_query, (member_id,))
-        result = cursor.fetchone()
-
-        if result['count'] > 0:
-            # auto ending old membership
-            cursor.execute("""
-            UPDATE member_membership
-            SET end_date = CURDATE()
+        try:
+            # checking for active membership
+            check_query = """
+            SELECT COUNT(*) AS count
+            FROM member_membership
             WHERE member_id = %s
             AND (end_date IS NULL OR end_date >= CURDATE())
-            """, (member_id,))
+            """
+            cursor.execute(check_query, (member_id,))
+            result = cursor.fetchone()
 
-        cursor.execute("SELECT duration_months FROM memberships WHERE membership_id = %s", (membership_id,))
-        duration = cursor.fetchone()['duration_months']
-        query = """
-        INSERT INTO member_membership (member_id, membership_id, start_date, end_date)
-        VALUES (%s, %s, %s, DATE_ADD(%s, INTERVAL %s MONTH))
-        """
-        cursor.execute(query, (member_id, membership_id, start_date, start_date, duration))
-        db.commit()
+            if result['count'] > 0:
+                # auto ending old membership
+                cursor.execute("""
+                UPDATE member_membership
+                SET end_date = CURDATE()
+                WHERE member_id = %s
+                AND (end_date IS NULL OR end_date >= CURDATE())
+                """, (member_id,))
+
+            cursor.execute("SELECT duration_months FROM memberships WHERE membership_id = %s", (membership_id,))
+            duration = cursor.fetchone()['duration_months']
+            query = """
+            INSERT INTO member_membership (member_id, membership_id, start_date, end_date)
+            VALUES (%s, %s, %s, DATE_ADD(%s, INTERVAL %s MONTH))
+            """
+            cursor.execute(query, (member_id, membership_id, start_date, start_date, duration))
+            db.commit()
+        except Error as e:
+            cursor.close()
+            return f"Error: {str(e)} <a href='/members'>Go back</a>"
         cursor.close()
         return redirect('/members')
+        
     cursor.execute("SELECT * FROM memberships")
     memberships = cursor.fetchall()
     cursor.close()
