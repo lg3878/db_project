@@ -1,0 +1,33 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+
+<div class="table-container">
+    {% if rows and rows|length > 0 %}
+    <table>
+        <thead>
+            <tr>
+                {% for col in rows[0].keys() %}
+                    <th>{{ col.replace('_', ' ').title() }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                {% for value in row.values() %}
+                    <td>{{ value if value is not none else "N/A" }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% else %}
+    <p style="text-align:center;">No staff found.</p>
+
+    {% endif %}
+</div>
+
+
+{% endblock %}

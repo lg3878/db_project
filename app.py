@@ -241,6 +241,23 @@ def memberships():
     return render_template('memberships.html', name='Memberships', rows=memberships)
 
 
+"""
+staff table
+
+"""
+
+def get_staff():
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM staff")
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
+@app.route('/staff')
+def staff():
+    all_staff = get_staff()
+    return render_template('staff.html', name="Members Table", rows=all_staff)
+
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
