@@ -259,5 +259,30 @@ def staff():
     return render_template('staff.html', name="Members Table", rows=all_staff)
 
 
+@app.route('/add_staff', methods=['GET', 'POST'])
+def add_staff():
+    cursor = db.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone_number')
+        email = request.form.get('email')
+        hire_date = request.form.get('hire_date')
+        salary = request.form.get('salary')
+        role = request.form.get('role')
+
+        query = """
+            INSERT INTO staff (name, phone_number, email, hire_date, salary, role)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (name, phone, email, hire_date, salary, role))
+        db.commit()
+
+        cursor.close()
+        return redirect('/staff')
+    cursor.close()
+    return render_template('add_staff.html')
+        
+
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
