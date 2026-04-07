@@ -1,0 +1,48 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+     {% if rows %}
+        {% set ms = rows[0] %}
+    {% else %}
+        {% set ms = membership %}
+    {% endif %}
+
+    <h1>{{ ms.membership_name }} Membership</h1>
+    <p><strong>Price:</strong> ${{ ms.price }}</p>
+    <p><strong>Duration:</strong> {{ ms.duration_months }} month(s)</p>
+
+    <a href="/edit_membership/{{ ms.membership_id }}">Edit Membership</a>
+
+    <h2>Enrolled Members</h2>
+
+    {% if rows %}
+        <table border="1" cellpadding="8">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td><a href="/member_page/{{ row.member_id }}">{{ row.name }}</a></td>
+                    <td>{{ row.email }}</td>
+                    <td>{{ row.phone }}</td>
+                    <td>{{ row.start_date }}</td>
+                    <td>{{ row.end_date if row.end_date else 'Active' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No members currently enrolled in this tier.</p>
+    {% endif %}
+
+    <br>
+    <a href="/memberships">Back to Memberships</a>
+
+{% endblock %}

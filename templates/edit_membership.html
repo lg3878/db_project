@@ -1,0 +1,34 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+    <h1>Edit Membership</h1>
+
+    <form method="POST" action="/edit_membership/{{ membership.membership_id }}">
+        <label for="membership_name">Membership Tier:</label>
+        <select name="membership_name" id="membership_name" required>
+            {% for tier in ['Bronze', 'Silver', 'Gold', 'Platinum'] %}
+                <option value="{{ tier }}" {% if membership.membership_name == tier %}selected{% endif %}>
+                    {{ tier }}
+                </option>
+            {% endfor %}
+        </select>
+        <br><br>
+
+        <label for="price">Price ($):</label>
+        <input type="number" name="price" id="price"
+               step="0.01" min="0"
+               value="{{ membership.price }}" required>
+        <br><br>
+
+        <label for="duration_months">Duration (months):</label>
+        <input type="number" name="duration_months" id="duration_months"
+               min="1"
+               value="{{ membership.duration_months }}" required>
+        <br><br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+
+    <br>
+    <a href="/memberships">Back to Memberships</a>
+{% endblock %}

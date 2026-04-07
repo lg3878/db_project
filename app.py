@@ -267,6 +267,79 @@ def add_membership():
     cursor.close()
     return render_template('add_membership.html', name='Add Membership')
 
+@app.route('/edit_membership/<int:membership_id>', methods=['GET', 'POST'])
+def edit_membership(membership_id):
+    cursor = db.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        membership_name = request.form.get('membership_name')
+        price = request.form.get('price')
+        duration_months = request.form.get('duration_months')
+
+        try:
+            query = """
+                UPDATE memberships SET membership_name = %s, price = %s, duration_months = %s
+                WHERE membership_id = %s
+            """
+            cursor.execute(query, (membership_name, price, duration_months, membership_id))
+
+            db.commit()
+            cursor.close()
+            return redirect('/memberships')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error updating membership: {str(e)} <a href='/edit_membership/{membership_id}'>Go back</a>"
+    cursor.execute("SELECT * FROM memberships WHERE membership_id = %s", (membership_id,))
+    membership = cursor.fetchone()
+    cursor.close()
+
+    if not membership:
+        return "Membership not found. <a href='/memberships'>Go back</a>"
+    
+    return render_template('edit_membership.html', name='Edit Membership', membership=membership)
+
+
+@app.route('/membership_page/<int:membership_id>')
+def membership_page(membership_id):
+    cursor = db.cursor(dictionary=True)
+
+    query = """
+    SELECT
+        ms.membership_id,
+        ms.membership_name,
+        ms.price,
+        ms.duration_months,
+        m.member_id,
+        m.name,
+        m.email,
+        m.phone,
+        mm.start_date,
+        mm.end_date
+    FROM memberships ms
+    JOIN member_membership mm ON ms.membership_id = mm.membership_id
+    JOIN member m ON mm.member_id = m.member_id
+    WHERE ms.membership_id = %s;
+    """
+
+    cursor.execute(query, (membership_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    if rows:
+        return render_template('membership_page.html', rows=rows)
+
+    # membership exists but has no enrolled members
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM memberships WHERE membership_id = %s", (membership_id,))
+    membership = cursor.fetchone()
+    cursor.close()
+
+    if membership:
+        return render_template('membership_page.html', rows=[], membership=membership)
+
+    return "Membership not found. <a href='/memberships'>Go back</a>"
+
 """
 staff table
 
