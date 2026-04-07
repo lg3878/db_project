@@ -241,6 +241,32 @@ def memberships():
     return render_template('memberships.html', name='Memberships', rows=memberships)
 
 
+@app.route('/add_membership', methods=['GET', 'POST'])
+def add_membership():
+    cursor = db.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        membership_name = request.form.get('membership_name')
+        price = request.form.get('price')
+        duration_months = request.form.get('duration_months')
+
+        try:
+            query = """
+                INSERT INTO memberships (membership_name, price, duration_months)
+                VALUES (%s, %s, %s)
+            """
+            cursor.execute(query, (membership_name, price, duration_months))
+            db.commit()
+            cursor.close()
+            return redirect('/memberships')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error adding membership: {str(e)} <a href='/add_membership'>Go back</a>"
+
+    cursor.close()
+    return render_template('add_membership.html', name='Add Membership')
+
 """
 staff table
 
