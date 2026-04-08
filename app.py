@@ -340,6 +340,45 @@ def membership_page(membership_id):
 
     return "Membership not found. <a href='/memberships'>Go back</a>"
 
+
+@app.route('/delete_membership/<int:membership_id>')
+def delete_membership(membership_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        # get all member_membership_ids for this tier
+        cursor.execute("""
+            SELECT member_membership_id FROM member_membership
+            WHERE membership_id = %s
+        """, (membership_id,))
+        mm_ids = [row['member_membership_id'] for row in cursor.fetchall()]
+
+        if mm_ids:
+            format_strings = ','.join(['%s'] * len(mm_ids))
+
+            # delete payments tied to those membership records
+            cursor.execute(f"""
+                DELETE FROM payments
+                WHERE member_membership_id IN ({format_strings})
+            """, mm_ids)
+
+            # delete member_membership records
+            cursor.execute(f"""
+                DELETE FROM member_membership
+                WHERE member_membership_id IN ({format_strings})
+            """, mm_ids)
+
+        # delete the membership tier itself
+        cursor.execute("DELETE FROM memberships WHERE membership_id = %s", (membership_id,))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deleting membership: {str(e)} <a href='/memberships'>Go back</a>"
+
+    cursor.close()
+    return redirect('/memberships')
+
+
 """
 staff table
 
