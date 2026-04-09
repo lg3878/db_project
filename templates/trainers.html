@@ -1,0 +1,33 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="table-container">
+    {% if rows and rows|length > 0 %}
+    <table>
+        <thead>
+            <tr>
+                {% for col in rows[0].keys() %}
+                    <th>{{ col.replace('_', ' ').title() }}</th>
+                {% endfor %}
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                {% for value in row.values() %}
+                    <td>{{ value if value is not none else "N/A" }}</td>
+                {% endfor %}
+                <td class="actions">
+                <a href="/staff_page/{{ row['staff_id'] }}">Trainer Page</a>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% else %}
+    <p style="text-align:center;">No trainers found.</p>
+
+    {% endif %}
+
+{% endblock %}

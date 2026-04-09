@@ -1,55 +1,71 @@
 {% extends 'layout.html' %}
-
 {% block content %}
-    <h1>Edit Staff Member</h1>
 
-    <form method="POST" action="/edit_staff/{{ staff.staff_id }}">
-        <label for="name">Name:</label>
-        <input type="text" name="name" id="name" value="{{ staff.name }}" required>
+<h1>Edit Staff Member</h1>
+
+<form method="POST" action="/edit_staff/{{ staff.staff_id }}">
+    <label for="name">Name:</label>
+    <input type="text" name="name" id="name" value="{{ staff.name }}" required>
+    <br><br>
+
+    <label for="phone_number">Phone:</label>
+    <input type="text" name="phone_number" id="phone_number" value="{{ staff.phone_number }}">
+    <br><br>
+
+    <label for="email">Email:</label>
+    <input type="email" name="email" id="email" value="{{ staff.email }}" required>
+    <br><br>
+
+    <label for="salary">Salary ($):</label>
+    <input type="number" name="salary" id="salary" step="0.01" min="0" value="{{ staff.salary }}" required>
+    <br><br>
+
+    <label for="role">Role:</label>
+    <input type="text" name="role" id="role" value="{{ staff.role }}" required>
+    <br><br>
+
+    <label for="is_trainer">Is this staff member a trainer?</label>
+    <input type="checkbox" name="is_trainer" id="is_trainer"
+           {{ 'checked' if trainer else '' }}
+           onchange="toggleCertification(this)">
+    <br><br>
+
+    <div id="certification_field" style="display: {{ 'block' if trainer else 'none' }};">
+        <label for="certification">Certification:</label>
+        <input type="text" name="certification" id="certification"
+               value="{{ trainer.certification if trainer and trainer.certification else '' }}">
         <br><br>
+    </div>
 
-        <label for="phone_number">Phone:</label>
-        <input type="text" name="phone_number" id="phone_number" value="{{ staff.phone_number }}">
+    <button type="submit">Save Changes</button>
+</form>
+
+<br>
+<hr>
+
+{% if staff.status == 'Active' %}
+    <h3>Deactivate Staff Member</h3>
+    <form method="GET" action="/deactivate_staff/{{ staff.staff_id }}">
+        <label for="last_day">Last Day:</label>
+        <input type="date" name="last_day" id="last_day" required>
         <br><br>
-
-        <label for="email">Email:</label>
-        <input type="email" name="email" id="email" value="{{ staff.email }}" required>
-        <br><br>
-
-        <label for="salary">Salary ($):</label>
-        <input type="number" name="salary" id="salary" step="0.01" min="0" value="{{ staff.salary }}" required>
-        <br><br>
-
-        <label for="role">Role:</label>
-        <input type="text" name="role" id="role" value="{{ staff.role }}" required>
-        <br><br>
-
-        <button type="submit">Save Changes</button>
+        <button type="submit" onclick="return confirm('Deactivate this staff member?')">Deactivate</button>
     </form>
+{% else %}
+    <h3>Reactivate Staff Member</h3>
+    <p>This staff member is currently inactive. Their last day was {{ staff.last_day }}.</p>
+    <a href="/activate_staff/{{ staff.staff_id }}"
+       onclick="return confirm('Reactivate this staff member?')">Reactivate</a>
+{% endif %}
 
-    <br>
-    <hr>
+<br>
+<a href="/staff_page/{{ staff.staff_id }}">Back to Staff Page</a>
 
-    {% if staff.status == 'Active' %}
-        <h3>Deactivate Staff Member</h3>
-        <form method="GET" action="/deactivate_staff/{{ staff.staff_id }}">
-            <label for="last_day">Last Day:</label>
-            <input type="date" name="last_day" id="last_day" required>
-            <br><br>
-            <button type="submit" onclick="return confirm('Deactivate this staff member?')">
-                Deactivate
-            </button>
-        </form>
-    {% else %}
-        <h3>Reactivate Staff Member</h3>
-        <p>This staff member is currently inactive. Their last day was {{ staff.last_day }}.</p>
-        <a href="/activate_staff/{{ staff.staff_id }}"
-           onclick="return confirm('Reactivate this staff member?')">
-            Reactivate
-        </a>
-    {% endif %}
-
-    <br>
-    <a href="/staff">Back to Staff</a>
+<script>
+    function toggleCertification(checkbox) {
+        document.getElementById('certification_field').style.display =
+            checkbox.checked ? 'block' : 'none';
+    }
+</script>
 
 {% endblock %}

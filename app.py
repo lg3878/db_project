@@ -395,7 +395,7 @@ def get_staff():
 @app.route('/staff')
 def staff():
     all_staff = get_staff()
-    return render_template('staff.html', name="Members Table", rows=all_staff)
+    return render_template('staff.html', name="Staff Table", rows=all_staff)
 
 
 @app.route('/add_staff', methods=['GET', 'POST'])
@@ -485,29 +485,62 @@ def edit_staff(staff_id):
         email = request.form.get('email')
         salary = request.form.get('salary')
         role = request.form.get('role')
+        is_trainer = request.form.get('is_trainer')  # 'on' if checked, None if not
+        certification = request.form.get('certification') or None
 
         try:
-            query = """
-                UPDATE staff SET name = %s, phone_number = %s, email = %s, salary = %s, role = %s WHERE staff_id = %s
-            """
+            # update core staff fields
+            cursor.execute("""
+                UPDATE staff SET name = %s, phone_number = %s, email = %s, salary = %s, role = %s
+                WHERE staff_id = %s
+            """, (name, phone, email, salary, role, staff_id))
 
-            cursor.execute(query, (name, phone, email, salary, role, staff_id))
+            # check if already a trainer
+            cursor.execute("SELECT staff_id FROM trainers WHERE staff_id = %s", (staff_id,))
+            already_trainer = cursor.fetchone()
+
+            if is_trainer and already_trainer:
+                # update certification
+                cursor.execute("""
+                    UPDATE trainers SET certification = %s WHERE staff_id = %s
+                """, (certification, staff_id))
+            elif is_trainer and not already_trainer:
+                # promote to trainer
+                cursor.execute("""
+                    INSERT INTO trainers (staff_id, certification) VALUES (%s, %s)
+                """, (staff_id, certification))
+            elif not is_trainer and already_trainer:
+                # demote: remove trainer record (and their classes)
+                cursor.execute("SELECT class_id FROM classes WHERE trainers_staff_id = %s", (staff_id,))
+                class_ids = [row['class_id'] for row in cursor.fetchall()]
+
+                if class_ids:
+                    fmt = ','.join(['%s'] * len(class_ids))
+                    cursor.execute(f"DELETE FROM class_enrollment WHERE class_id IN ({fmt})", class_ids)
+                    cursor.execute(f"DELETE FROM classes WHERE class_id IN ({fmt})", class_ids)
+
+                cursor.execute("DELETE FROM trainers WHERE staff_id = %s", (staff_id,))
+
             db.commit()
             cursor.close()
-            return redirect('/staff')
+            return redirect(f'/staff_page/{staff_id}')
         except Error as e:
             db.rollback()
             cursor.close()
-            return f"Error updating staff: {str(e)} <a href='/edit_staff/{staff_id}'>Go Back</a>"
-        
+            return f"Error updating staff: {str(e)} <a href='/edit_staff/{staff_id}'>Go back</a>"
+
+    # GET: fetch staff + check if trainer
     cursor.execute("SELECT * FROM staff WHERE staff_id = %s", (staff_id,))
-    staff = cursor.fetchone()
+    staff_member = cursor.fetchone()
+
+    cursor.execute("SELECT certification FROM trainers WHERE staff_id = %s", (staff_id,))
+    trainer = cursor.fetchone()
     cursor.close()
 
-    if not staff:
+    if not staff_member:
         return "Staff member not found. <a href='/staff'>Go back</a>"
-        
-    return render_template('edit_staff.html', name='Edit Staff', staff=staff)
+
+    return render_template('edit_staff.html', name='Edit Staff', staff=staff_member, trainer=trainer)
 
 @app.route('/deactivate_staff/<int:staff_id>')
 def deactivate_staff(staff_id):
@@ -602,6 +635,41 @@ def delete_staff(staff_id):
 
     cursor.close()
     return redirect('/staff')
+
+
+
+"""
+Trainer table
+Create is done in staff functions above
+
+"""
+def get_trainers():
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT
+            s.staff_id,
+            s.name,
+            s.email,
+            s.phone_number,
+            s.role,
+            s.salary,
+            s.hire_date,
+            s.status,
+            t.certification
+        FROM trainers t
+        JOIN staff s ON t.staff_id = s.staff_id;
+    """
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
+
+@app.route('/trainers')
+def trainers():
+    all_trainers = get_trainers()
+    return render_template('trainers.html', name="Trainers Table", rows=all_trainers)
+
 
 
 if __name__=="__main__":
