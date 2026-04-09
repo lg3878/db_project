@@ -533,5 +533,60 @@ def activate_staff(staff_id):
     cursor.close()
     return redirect('/staff')
 
+
+@app.route('/delete_staff/<int:staff_id>')
+def delete_staff(staff_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        # delete maintenance records assigned to this staff member
+        cursor.execute("""
+            DELETE FROM maintenance WHERE staff_id = %s
+        """, (staff_id,))
+
+        # check if staff member is a trainer
+        cursor.execute("""
+            SELECT staff_id FROM trainers WHERE staff_id = %s
+        """, (staff_id,))
+        is_trainer = cursor.fetchone()
+
+        if is_trainer:
+            # get class_ids for this trainer
+            cursor.execute("""
+                SELECT class_id FROM classes WHERE trainers_staff_id = %s
+            """, (staff_id,))
+            class_ids = [row['class_id'] for row in cursor.fetchall()]
+
+            if class_ids:
+                format_strings = ','.join(['%s'] * len(class_ids))
+
+                # delete class enrollments for those classes
+                cursor.execute(f"""
+                    DELETE FROM class_enrollment
+                    WHERE class_id IN ({format_strings})
+                """, class_ids)
+
+                # delete the classes themselves
+                cursor.execute(f"""
+                    DELETE FROM classes
+                    WHERE class_id IN ({format_strings})
+                """, class_ids)
+
+            # delete trainer record
+            cursor.execute("""
+                DELETE FROM trainers WHERE staff_id = %s
+            """, (staff_id,))
+
+        # delete staff member
+        cursor.execute("DELETE FROM staff WHERE staff_id = %s", (staff_id,))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deleting staff member: {str(e)} <a href='/staff'>Go back</a>"
+
+    cursor.close()
+    return redirect('/staff')
+
+
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
