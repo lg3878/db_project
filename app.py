@@ -267,6 +267,7 @@ def add_membership():
     cursor.close()
     return render_template('add_membership.html', name='Add Membership')
 
+
 @app.route('/edit_membership/<int:membership_id>', methods=['GET', 'POST'])
 def edit_membership(membership_id):
     cursor = db.cursor(dictionary=True)
@@ -421,6 +422,116 @@ def add_staff():
     cursor.close()
     return render_template('add_staff.html')
         
+@app.route('/staff_page/<int:staff_id>')
+def staff_page(staff_id):
+    cursor = db.cursor(dictionary=True)
+
+    query = """
+    SELECT
+        s.staff_id,
+        s.name,
+        s.email,
+        s.phone_number,
+        s.role,
+        s.salary,
+        s.hire_date,
+        s.status,
+        s.last_day,
+        c.class_id,
+        ct.class_name,
+        c.scheduled_time,
+        c.duration_minutes,
+        c.capacity
+    FROM staff s
+    LEFT JOIN trainers t ON s.staff_id = t.staff_id
+    LEFT JOIN classes c ON t.staff_id = c.trainers_staff_id
+    LEFT JOIN class_type ct ON c.class_type_id = ct.class_type_id
+    WHERE s.staff_id = %s;
+    """
+
+    cursor.execute(query, (staff_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    if not rows:
+        return "Staff member not found. <a href='/staff'>Go back</a>"
+
+    return render_template('staff_page.html', rows=rows)
+
+
+@app.route('/edit_staff/<int:staff_id>', methods=['GET', 'POST'])
+def edit_staff(staff_id):
+    cursor = db.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone_number')
+        email = request.form.get('email')
+        salary = request.form.get('salary')
+        role = request.form.get('role')
+
+        try:
+            query = """
+                UPDATE staff SET name = %s, phone_number = %s, email = %s, salary = %s, role = %s WHERE staff_id = %s
+            """
+
+            cursor.execute(query, (name, phone, email, salary, role, staff_id))
+            db.commit()
+            cursor.close()
+            return redirect('/staff')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error updating staff: {str(e)} <a href='/edit_staff/{staff_id}'>Go Back</a>"
+        
+    cursor.execute("SELECT * FROM staff WHERE staff_id = %s", (staff_id,))
+    staff = cursor.fetchone()
+    cursor.close()
+
+    if not staff:
+        return "Staff member not found. <a href='/staff'>Go back</a>"
+        
+    return render_template('edit_staff.html', name='Edit Staff', staff=staff)
+
+@app.route('/deactivate_staff/<int:staff_id>')
+def deactivate_staff(staff_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        last_day = request.args.get('last_day')
+        query = """
+            UPDATE staff
+            SET status = 'Inactive', last_day = %s
+            WHERE staff_id = %s
+        """
+        cursor.execute(query, (last_day, staff_id))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deactivating staff: {str(e)} <a href='/staff'>Go back</a>"
+
+    cursor.close()
+    return redirect('/staff')
+
+
+@app.route('/activate_staff/<int:staff_id>')
+def activate_staff(staff_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        query = """
+            UPDATE staff
+            SET status = 'Active', last_day = NULL
+            WHERE staff_id = %s
+        """
+        cursor.execute(query, (staff_id,))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error activating staff: {str(e)} <a href='/staff'>Go back</a>"
+
+    cursor.close()
+    return redirect('/staff')
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)

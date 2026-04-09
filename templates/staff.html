@@ -10,6 +10,7 @@
                 {% for col in rows[0].keys() %}
                     <th>{{ col.replace('_', ' ').title() }}</th>
                 {% endfor %}
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -18,6 +19,8 @@
                 {% for value in row.values() %}
                     <td>{{ value if value is not none else "N/A" }}</td>
                 {% endfor %}
+                <td class="actions">
+                <a href="/staff_page/{{ row['staff_id'] }}">Staff Page</a>
             </tr>
             {% endfor %}
         </tbody>
