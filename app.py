@@ -409,18 +409,34 @@ def add_staff():
         hire_date = request.form.get('hire_date')
         salary = request.form.get('salary')
         role = request.form.get('role')
+        is_trainer = request.form.get('is_trainer')  # 'on' if checked, None if not
+        certification = request.form.get('certification')
 
-        query = """
-            INSERT INTO staff (name, phone_number, email, hire_date, salary, role)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        cursor.execute(query, (name, phone, email, hire_date, salary, role))
-        db.commit()
+        try:
+            cursor.execute("""
+                INSERT INTO staff (name, phone_number, email, hire_date, salary, role)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (name, phone, email, hire_date, salary, role))
 
-        cursor.close()
-        return redirect('/staff')
+            staff_id = cursor.lastrowid
+
+            if is_trainer:
+                cursor.execute("""
+                    INSERT INTO trainers (staff_id, certification)
+                    VALUES (%s, %s)
+                """, (staff_id, certification or None))
+
+            db.commit()
+            cursor.close()
+            return redirect('/staff')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error adding staff: {str(e)} <a href='/add_staff'>Go back</a>"
+
     cursor.close()
     return render_template('add_staff.html')
+
         
 @app.route('/staff_page/<int:staff_id>')
 def staff_page(staff_id):
