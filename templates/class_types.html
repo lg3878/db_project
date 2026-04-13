@@ -1,0 +1,29 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+<h1>Class Types</h1>
+<a href="/add_class_type">Add Class Type</a>
+<br><br>
+
+{% if rows %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Class Name</th>
+            <th>Difficulty Level</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.class_name }}</td>
+            <td>{{ row.difficulty_level }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p>No class types found.</p>
+{% endif %}
+
+{% endblock %}

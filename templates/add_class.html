@@ -1,0 +1,43 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+<h1>Add Class</h1>
+
+<form method="POST" action="/add_class">
+    <label for="class_type_id">Class Type:</label>
+    <select name="class_type_id" id="class_type_id" required>
+        <option value="" disabled selected>Select a class type</option>
+        {% for ct in class_types %}
+        <option value="{{ ct.class_type_id }}">{{ ct.class_name }} ({{ ct.difficulty_level }})</option>
+        {% endfor %}
+    </select>
+    <br><br>
+
+    <label for="trainer_id">Trainer:</label>
+    <select name="trainer_id" id="trainer_id" required>
+        <option value="" disabled selected>Select a trainer</option>
+        {% for trainer in trainers %}
+        <option value="{{ trainer.staff_id }}">{{ trainer.name }}</option>
+        {% endfor %}
+    </select>
+    <br><br>
+
+    <label for="scheduled_time">Scheduled Time:</label>
+    <input type="datetime-local" name="scheduled_time" id="scheduled_time" required>
+    <br><br>
+
+    <label for="duration_minutes">Duration (minutes):</label>
+    <input type="number" name="duration_minutes" id="duration_minutes" min="1" required>
+    <br><br>
+
+    <label for="capacity">Capacity:</label>
+    <input type="number" name="capacity" id="capacity" min="1" required>
+    <br><br>
+
+    <button type="submit">Add Class</button>
+</form>
+
+<br>
+<a href="/classes">Back to Classes</a>
+
+{% endblock %}

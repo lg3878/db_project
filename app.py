@@ -671,6 +671,158 @@ def trainers():
     return render_template('trainers.html', name="Trainers Table", rows=all_trainers)
 
 
+"""
+Classes table
+"""
+
+def get_classes():
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT
+            c.class_id,
+            ct.class_name,
+            ct.difficulty_level,
+            c.scheduled_time,
+            c.duration_minutes,
+            c.capacity,
+            s.name AS trainer_name,
+            s.staff_id AS trainer_staff_id
+        FROM classes c
+        JOIN class_type ct ON c.class_type_id = ct.class_type_id
+        JOIN trainers t ON c.trainers_staff_id = t.staff_id
+        JOIN staff s ON t.staff_id = s.staff_id
+    """
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
+
+@app.route('/classes')
+def classes():
+    all_classes = get_classes()
+    return render_template('classes.html', name='Classes', rows=all_classes)
+
+@app.route('/add_class', methods=['GET', 'POST'])
+def add_class():
+    cursor = db.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        class_type_id = request.form.get('class_type_id')
+        trainer_id = request.form.get('trainer_id')
+        scheduled_time = request.form.get('scheduled_time')
+        duration_minutes = request.form.get('duration_minutes')
+        capacity = request.form.get('capacity')
+
+        try:
+            cursor.execute("""
+                INSERT INTO classes (class_type_id, trainers_staff_id, scheduled_time, duration_minutes, capacity)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (class_type_id, trainer_id, scheduled_time, duration_minutes, capacity))
+            db.commit()
+            cursor.close()
+            return redirect('/classes')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error adding class: {str(e)} <a href='/add_class'>Go back</a>"
+
+    # populate dropdowns
+    cursor.execute("SELECT * FROM class_type")
+    class_types = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT t.staff_id, s.name
+        FROM trainers t
+        JOIN staff s ON t.staff_id = s.staff_id
+        WHERE s.status = 'Active'
+    """)
+    trainers = cursor.fetchall()
+    cursor.close()
+
+    return render_template('add_class.html', name='Add Class', class_types=class_types, trainers=trainers)
+
+
+@app.route('/class_page/<int:class_id>')
+def class_page(class_id):
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT
+            c.class_id,
+            ct.class_name,
+            ct.difficulty_level,
+            c.scheduled_time,
+            c.duration_minutes,
+            c.capacity,
+            c.trainers_staff_id AS trainer_staff_id,
+            s.name AS trainer_name,
+            m.member_id,
+            m.name AS member_name,
+            m.email,
+            ce.attendance_status,
+            ce.signup_date
+        FROM classes c
+        JOIN class_type ct ON c.class_type_id = ct.class_type_id
+        JOIN staff s ON c.trainers_staff_id = s.staff_id
+        LEFT JOIN class_enrollment ce ON c.class_id = ce.class_id
+        LEFT JOIN member m ON ce.member_id = m.member_id
+        WHERE c.class_id = %s
+    """
+    cursor.execute(query, (class_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    if not rows:
+        return "Class not found. <a href='/classes'>Go back</a>"
+
+    return render_template('class_page.html', rows=rows)
+
+
+"""
+Class Type table
+
+"""
+
+def get_class_types():
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM class_type")
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
+
+@app.route('/class_types')
+def class_types():
+    all_class_types = get_class_types()
+    return render_template('class_types.html', name='Class Types', rows=all_class_types)
+
+
+@app.route('/add_class_type', methods=['GET', 'POST'])
+def add_class_type():
+    cursor = db.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        class_name = request.form.get('class_name')
+        difficulty_level = request.form.get('difficulty_level')
+
+        try:
+            cursor.execute("""
+                INSERT INTO class_type (class_name, difficulty_level)
+                VALUES (%s, %s)
+            """, (class_name, difficulty_level))
+            db.commit()
+            cursor.close()
+            return redirect('/class_types')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error adding class type: {str(e)} <a href='/add_class_type'>Go back</a>"
+
+    cursor.close()
+    return render_template('add_class_type.html', name='Add Class Type')
+
+
+
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)

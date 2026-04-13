@@ -1,0 +1,26 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+<h1>Add Class Type</h1>
+
+<form method="POST" action="/add_class_type">
+    <label for="class_name">Class Name:</label>
+    <input type="text" name="class_name" id="class_name" required>
+    <br><br>
+
+    <label for="difficulty_level">Difficulty Level:</label>
+    <select name="difficulty_level" id="difficulty_level" required>
+        <option value="" disabled selected>Select a difficulty</option>
+        <option value="Beginner">Beginner</option>
+        <option value="Intermediate">Intermediate</option>
+        <option value="Advanced">Advanced</option>
+    </select>
+    <br><br>
+
+    <button type="submit">Add Class Type</button>
+</form>
+
+<br>
+<a href="/class_types">Back to Class Types</a>
+
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+<h1>Classes</h1>
+<a href="/add_class">Add Class</a>
+<br><br>
+
+<a href="/class_types">See Class Types</a>
+
+{% if rows %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Class Name</th>
+            <th>Difficulty</th>
+            <th>Trainer</th>
+            <th>Scheduled Time</th>
+            <th>Duration (mins)</th>
+            <th>Capacity</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <td><a href="/class_page/{{ row.class_id }}">{{ row.class_name }}</a></td>
+            <td>{{ row.difficulty_level }}</td>
+            <td><a href="/staff_page/{{ row.trainer_staff_id }}">{{ row.trainer_name }}</a></td>
+            <td>{{ row.scheduled_time }}</td>
+            <td>{{ row.duration_minutes }}</td>
+            <td>{{ row.capacity }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p>No classes found.</p>
+{% endif %}
+
+
+
+{% endblock %}

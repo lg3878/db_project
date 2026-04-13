@@ -1,0 +1,44 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+{% set c = rows[0] %}
+
+<h1>{{ c.class_name }}</h1>
+<p><strong>Difficulty:</strong> {{ c.difficulty_level }}</p>
+<p><strong>Trainer:</strong> <a href="/staff_page/{{ c.trainer_staff_id }}">{{ c.trainer_name }}</a></p>
+<p><strong>Scheduled Time:</strong> {{ c.scheduled_time }}</p>
+<p><strong>Duration:</strong> {{ c.duration_minutes }} minutes</p>
+<p><strong>Capacity:</strong> {{ c.capacity }}</p>
+
+<h2>Enrolled Members</h2>
+{% if rows[0].member_id %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Signup Date</th>
+            <th>Attendance</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        {% if row.member_id %}
+        <tr>
+            <td><a href="/member_page/{{ row.member_id }}">{{ row.member_name }}</a></td>
+            <td>{{ row.email }}</td>
+            <td>{{ row.signup_date }}</td>
+            <td>{{ row.attendance_status }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p>No members enrolled in this class.</p>
+{% endif %}
+
+<br>
+<a href="/classes">Back to Classes</a>
+
+{% endblock %}
