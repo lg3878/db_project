@@ -1,0 +1,51 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+<h1>Edit Class</h1>
+
+<form method="POST" action="/edit_class/{{ class_row.class_id }}">
+    <label for="class_type_id">Class Type:</label>
+    <select name="class_type_id" id="class_type_id" required>
+        {% for ct in class_types %}
+        <option value="{{ ct.class_type_id }}"
+            {{ 'selected' if ct.class_type_id == class_row.class_type_id else '' }}>
+            {{ ct.class_name }} ({{ ct.difficulty_level }})
+        </option>
+        {% endfor %}
+    </select>
+    <br><br>
+
+    <label for="trainer_id">Trainer:</label>
+    <select name="trainer_id" id="trainer_id" required>
+        {% for trainer in trainers %}
+        <option value="{{ trainer.staff_id }}"
+            {{ 'selected' if trainer.staff_id == class_row.trainers_staff_id else '' }}>
+            {{ trainer.name }}
+        </option>
+        {% endfor %}
+    </select>
+    <br><br>
+
+    <label for="scheduled_time">Scheduled Time:</label>
+    <input type="datetime-local" name="scheduled_time" id="scheduled_time"
+           value="{{ class_row.scheduled_time.strftime('%Y-%m-%dT%H:%M') if class_row.scheduled_time else '' }}"
+           required>
+    <br><br>
+
+    <label for="duration_minutes">Duration (minutes):</label>
+    <input type="number" name="duration_minutes" id="duration_minutes"
+           min="1" value="{{ class_row.duration_minutes }}" required>
+    <br><br>
+
+    <label for="capacity">Capacity:</label>
+    <input type="number" name="capacity" id="capacity"
+           min="1" value="{{ class_row.capacity }}" required>
+    <br><br>
+
+    <button type="submit">Save Changes</button>
+</form>
+
+<br>
+<a href="/class_page/{{ class_row.class_id }}">Back to Class Page</a>
+
+{% endblock %}

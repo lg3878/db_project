@@ -10,6 +10,13 @@
 <p><strong>Duration:</strong> {{ c.duration_minutes }} minutes</p>
 <p><strong>Capacity:</strong> {{ c.capacity }}</p>
 
+
+<a href="/edit_class/{{ c.class_id }}">Edit Class</a> |
+<a href="/delete_class/{{ c.class_id }}"
+   onclick="return confirm('Are you sure you want to delete this class? This will remove all enrollments.')">
+    Delete Class
+</a>
+
 <h2>Enrolled Members</h2>
 {% if rows[0].member_id %}
 <table border="1" cellpadding="8">

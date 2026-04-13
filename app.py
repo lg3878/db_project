@@ -777,8 +777,84 @@ def class_page(class_id):
 
     return render_template('class_page.html', rows=rows)
 
+@app.route('/edit_class/<int:class_id>', methods=['GET', 'POST'])
+def edit_class(class_id):
+    cursor = db.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        class_type_id = request.form.get('class_type_id')
+        trainer_id = request.form.get('trainer_id')
+        scheduled_time = request.form.get('scheduled_time')
+        duration_minutes = request.form.get('duration_minutes')
+        capacity = request.form.get('capacity')
+
+        try:
+            cursor.execute("""
+                UPDATE classes
+                SET class_type_id = %s, trainers_staff_id = %s,
+                    scheduled_time = %s, duration_minutes = %s, capacity = %s
+                WHERE class_id = %s
+            """, (class_type_id, trainer_id, scheduled_time, duration_minutes, capacity, class_id))
+            db.commit()
+            cursor.close()
+            return redirect(f'/class_page/{class_id}')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error updating class: {str(e)} <a href='/edit_class/{class_id}'>Go back</a>"
+
+    # GET: fetch class + populate dropdowns
+    cursor.execute("SELECT * FROM classes WHERE class_id = %s", (class_id,))
+    class_row = cursor.fetchone()
+
+    if not class_row:
+        cursor.close()
+        return "Class not found. <a href='/classes'>Go back</a>"
+
+    cursor.execute("SELECT * FROM class_type")
+    class_types = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT t.staff_id, s.name
+        FROM trainers t
+        JOIN staff s ON t.staff_id = s.staff_id
+        WHERE s.status = 'Active'
+    """)
+    trainers = cursor.fetchall()
+    cursor.close()
+
+    return render_template('edit_class.html', name='Edit Class',
+                           class_row=class_row, class_types=class_types, trainers=trainers)
+
+
+@app.route('/delete_class/<int:class_id>')
+def delete_class(class_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        # delete payments tied to class enrollments
+        cursor.execute("""
+            DELETE FROM payments WHERE class_enrollment_id IN (
+                SELECT class_enrollment_id FROM class_enrollment WHERE class_id = %s
+            )
+        """, (class_id,))
+
+        # delete enrollments
+        cursor.execute("DELETE FROM class_enrollment WHERE class_id = %s", (class_id,))
+
+        # delete class
+        cursor.execute("DELETE FROM classes WHERE class_id = %s", (class_id,))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deleting class: {str(e)} <a href='/classes'>Go back</a>"
+
+    cursor.close()
+    return redirect('/classes')
+
 
 """
+
 Class Type table
 
 """
@@ -822,7 +898,14 @@ def add_class_type():
     return render_template('add_class_type.html', name='Add Class Type')
 
 
+"""
+Equipment
+"""
 
+
+"""
+Payments
+"""
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
