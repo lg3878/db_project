@@ -1,0 +1,34 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h1>Equipment</h1>
+<a href="/add_equipment">+ Add Equipment</a>
+ 
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Purchase Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in rows %}
+        <tr>
+            <td>{{ item.equipment_id }}</td>
+            <td><a href="/equipment_page/{{ item.equipment_id }}">{{ item.equipment_name }}</a></td>
+            <td>{{ item.purchase_date }}</td>
+            <td>
+                <a href="/edit_equipment/{{ item.equipment_id }}">Edit</a> |
+                <a href="/delete_equipment/{{ item.equipment_id }}"
+                   onclick="return confirm('Delete {{ item.equipment_name }}?')">Delete</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No equipment found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

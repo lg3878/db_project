@@ -903,6 +903,127 @@ Equipment
 """
 
 
+def get_equipment():
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM equipment ORDER BY equipment_name")
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
+
+@app.route('/equipment')
+def equipment():
+    all_equipment = get_equipment()
+    return render_template('equipment.html', name='Equipment', rows=all_equipment)
+
+
+@app.route('/add_equipment', methods=['GET', 'POST'])
+def add_equipment():
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        equipment_name = request.form.get('equipment_name')
+        purchase_date = request.form.get('purchase_date')
+ 
+        try:
+            cursor.execute("""
+                INSERT INTO equipment (equipment_name, purchase_date)
+                VALUES (%s, %s)
+            """, (equipment_name, purchase_date))
+            db.commit()
+            cursor.close()
+            return redirect('/equipment')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error adding equipment: {str(e)} <a href='/add_equipment'>Go back</a>"
+ 
+    cursor.close()
+    return render_template('add_equipment.html', name='Add Equipment')
+ 
+ 
+@app.route('/edit_equipment/<int:equipment_id>', methods=['GET', 'POST'])
+def edit_equipment(equipment_id):
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        equipment_name = request.form.get('equipment_name')
+        purchase_date = request.form.get('purchase_date')
+ 
+        try:
+            cursor.execute("""
+                UPDATE equipment
+                SET equipment_name = %s, purchase_date = %s
+                WHERE equipment_id = %s
+            """, (equipment_name, purchase_date, equipment_id))
+            db.commit()
+            cursor.close()
+            return redirect('/equipment')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error updating equipment: {str(e)} <a href='/edit_equipment/{equipment_id}'>Go back</a>"
+ 
+    cursor.execute("SELECT * FROM equipment WHERE equipment_id = %s", (equipment_id,))
+    item = cursor.fetchone()
+    cursor.close()
+ 
+    if not item:
+        return "Equipment not found. <a href='/equipment'>Go back</a>"
+ 
+    return render_template('edit_equipment.html', name='Edit Equipment', item=item)
+ 
+ 
+@app.route('/equipment_page/<int:equipment_id>')
+def equipment_page(equipment_id):
+    cursor = db.cursor(dictionary=True)
+ 
+    # Fetch equipment details along with its maintenance history
+    query = """
+        SELECT
+            e.equipment_id,
+            e.equipment_name,
+            e.purchase_date,
+            m.maintenance_id,
+            m.maintenance_date,
+            s.staff_id,
+            s.name AS staff_name,
+            s.role AS staff_role
+        FROM equipment e
+        LEFT JOIN maintenance m ON e.equipment_id = m.equipment_id
+        LEFT JOIN staff s ON m.staff_id = s.staff_id
+        WHERE e.equipment_id = %s
+        ORDER BY m.maintenance_date DESC
+    """
+    cursor.execute(query, (equipment_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+ 
+    if not rows:
+        return "Equipment not found. <a href='/equipment'>Go back</a>"
+ 
+    return render_template('equipment_page.html', rows=rows)
+ 
+ 
+@app.route('/delete_equipment/<int:equipment_id>')
+def delete_equipment(equipment_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        # Delete maintenance records first (FK dependency)
+        cursor.execute("DELETE FROM maintenance WHERE equipment_id = %s", (equipment_id,))
+ 
+        # Delete equipment
+        cursor.execute("DELETE FROM equipment WHERE equipment_id = %s", (equipment_id,))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deleting equipment: {str(e)} <a href='/equipment'>Go back</a>"
+ 
+    cursor.close()
+    return redirect('/equipment')
+
+
 """
 Payments
 """

@@ -1,0 +1,40 @@
+{% extends 'layout.html' %}
+{% block content %}
+{% set e = rows[0] %}
+<h1>{{ e.equipment_name }}</h1>
+<p><strong>Equipment ID:</strong> {{ e.equipment_id }}</p>
+<p><strong>Purchase Date:</strong> {{ e.purchase_date }}</p>
+<a href="/edit_equipment/{{ e.equipment_id }}">Edit</a> |
+<a href="/delete_equipment/{{ e.equipment_id }}"
+   onclick="return confirm('Delete this equipment and all its maintenance records?')">Delete</a>
+ 
+<h2>Maintenance History</h2>
+{% if e.maintenance_id %}
+<table>
+    <thead>
+        <tr>
+            <th>Maintenance ID</th>
+            <th>Date</th>
+            <th>Staff</th>
+            <th>Role</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        {% if row.maintenance_id %}
+        <tr>
+            <td>{{ row.maintenance_id }}</td>
+            <td>{{ row.maintenance_date }}</td>
+            <td><a href="/staff_page/{{ row.staff_id }}">{{ row.staff_name }}</a></td>
+            <td>{{ row.staff_role }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No maintenance records for this equipment.</p>
+{% endif %}
+ 
+<a href="/equipment">Back to Equipment</a>
+{% endblock %}

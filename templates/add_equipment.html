@@ -1,0 +1,14 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Add Equipment</h1>
+<form method="POST">
+    <label>Equipment Name:
+        <input type="text" name="equipment_name" required>
+    </label><br>
+    <label>Purchase Date:
+        <input type="date" name="purchase_date" required>
+    </label><br>
+    <button type="submit">Add Equipment</button>
+    <a href="/equipment">Cancel</a>
+</form>
+{% endblock %}
