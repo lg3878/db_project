@@ -1,0 +1,135 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Add Payment</h1>
+ 
+<form method="POST">
+ 
+    <!-- Step 1: pick a member -->
+    <label>Member:
+        <select name="member_id" id="member_select" required>
+            <option value="">-- Select member --</option>
+            {% for m in members %}
+            <option value="{{ m.member_id }}">{{ m.name }}</option>
+            {% endfor %}
+        </select>
+    </label><br>
+ 
+    <!-- Step 2: pick payment type (shown after member selected) -->
+    <div id="type_section" style="display:none;">
+        <label>Payment Type:
+            <select name="payment_type" id="type_select">
+                <option value="">-- Select type --</option>
+                <option value="membership">Membership</option>
+                <option value="class">Class</option>
+            </select>
+        </label>
+    </div><br>
+ 
+    <!-- Step 3a: membership picker -->
+    <div id="membership_section" style="display:none;">
+        <label>Membership:
+            <select name="member_membership_id" id="membership_select">
+                <option value="">-- Select membership --</option>
+            </select>
+        </label>
+    </div>
+ 
+    <!-- Step 3b: class enrollment picker -->
+    <div id="class_section" style="display:none;">
+        <label>Class Enrollment:
+            <select name="class_enrollment_id" id="class_select">
+                <option value="">-- Select class --</option>
+            </select>
+        </label>
+    </div><br>
+ 
+    <!-- Payment details (shown once type chosen) -->
+    <div id="details_section" style="display:none;">
+        <label>Amount ($):
+            <input type="number" name="amount" step="0.01" min="0" required>
+        </label><br>
+ 
+        <label>Payment Date:
+            <input type="date" name="payment_date" required>
+        </label><br>
+ 
+        <label>Payment Method:
+            <select name="payment_method" required>
+                {% for method in payment_methods %}
+                <option value="{{ method }}">{{ method|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </label><br>
+ 
+        <label>Status:
+            <select name="status" required>
+                {% for s in payment_statuses %}
+                <option value="{{ s }}" {% if s == 'completed' %}selected{% endif %}>
+                    {{ s|capitalize }}
+                </option>
+                {% endfor %}
+            </select>
+        </label><br>
+ 
+        <button type="submit">Add Payment</button>
+        <a href="/payments">Cancel</a>
+    </div>
+</form>
+ 
+<script>
+const memberSelect     = document.getElementById('member_select');
+const typeSection      = document.getElementById('type_section');
+const typeSelect       = document.getElementById('type_select');
+const membershipSection = document.getElementById('membership_section');
+const membershipSelect = document.getElementById('membership_select');
+const classSection     = document.getElementById('class_section');
+const classSelect      = document.getElementById('class_select');
+const detailsSection   = document.getElementById('details_section');
+ 
+// When a member is chosen, show payment type and fetch their targets
+memberSelect.addEventListener('change', async () => {
+    const memberId = memberSelect.value;
+ 
+    // Reset downstream
+    typeSelect.value = '';
+    typeSection.style.display = 'none';
+    membershipSection.style.display = 'none';
+    classSection.style.display = 'none';
+    detailsSection.style.display = 'none';
+ 
+    if (!memberId) return;
+ 
+    // Fetch memberships + enrollments for this member
+    const res = await fetch(`/get_member_payment_targets/${memberId}`);
+    const data = await res.json();
+ 
+    // Populate membership dropdown
+    membershipSelect.innerHTML = '<option value="">-- Select membership --</option>';
+    data.memberships.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.member_membership_id;
+        opt.textContent = `${m.membership_name} (${m.start_date} → ${m.end_date ?? 'ongoing'})`;
+        membershipSelect.appendChild(opt);
+    });
+ 
+    // Populate class dropdown
+    classSelect.innerHTML = '<option value="">-- Select class --</option>';
+    data.enrollments.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.class_enrollment_id;
+        opt.textContent = `${e.class_name} on ${e.scheduled_time} [${e.attendance_status}]`;
+        classSelect.appendChild(opt);
+    });
+ 
+    typeSection.style.display = 'block';
+});
+ 
+// When payment type is chosen, show the right picker + details
+typeSelect.addEventListener('change', () => {
+    const type = typeSelect.value;
+    membershipSection.style.display = (type === 'membership') ? 'block' : 'none';
+    classSection.style.display      = (type === 'class')      ? 'block' : 'none';
+    detailsSection.style.display    = type ? 'block' : 'none';
+});
+</script>
+{% endblock %}

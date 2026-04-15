@@ -1,0 +1,93 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Payments</h1>
+<a href="/add_payment">+ Add Payment</a>
+ 
+<!-- Filter controls -->
+<form method="GET" action="/payments" style="margin: 1rem 0;">
+    <label>Member:
+        <select name="member_id">
+            <option value="">All Members</option>
+            {% for mid, mname in members.items() %}
+            <option value="{{ mid }}" {% if request.args.get('member_id')|int == mid %}selected{% endif %}>
+                {{ mname }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+ 
+    <label>Type:
+        <select name="payment_type">
+            <option value="">All Types</option>
+            {% for pt in payment_types %}
+            <option value="{{ pt }}" {% if request.args.get('payment_type') == pt %}selected{% endif %}>
+                {{ pt|capitalize }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+ 
+    <label>Status:
+        <select name="status">
+            <option value="">All Statuses</option>
+            {% for s in payment_statuses %}
+            <option value="{{ s }}" {% if request.args.get('status') == s %}selected{% endif %}>
+                {{ s|capitalize }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+ 
+    <button type="submit">Filter</button>
+    <a href="/payments">Clear</a>
+</form>
+ 
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Member</th>
+            <th>Type</th>
+            <th>For</th>
+            <th>Amount</th>
+            <th>Date</th>
+            <th>Method</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set filter_member = request.args.get('member_id', '') %}
+        {% set filter_type   = request.args.get('payment_type', '') %}
+        {% set filter_status = request.args.get('status', '') %}
+ 
+        {% for row in rows %}
+        {% if (not filter_member or row.member_id|string == filter_member) and
+              (not filter_type   or row.payment_type == filter_type) and
+              (not filter_status or row.status == filter_status) %}
+        <tr>
+            <td>{{ row.payment_id }}</td>
+            <td><a href="/member_page/{{ row.member_id }}">{{ row.member_name }}</a></td>
+            <td>{{ row.payment_type|capitalize }}</td>
+            <td>
+                {% if row.payment_type == 'membership' %}
+                    {{ row.membership_name or '—' }}
+                {% else %}
+                    {{ row.class_name or '—' }}
+                {% endif %}
+            </td>
+            <td>${{ "%.2f"|format(row.amount) }}</td>
+            <td>{{ row.payment_date }}</td>
+            <td>{{ row.payment_method|capitalize }}</td>
+            <td>{{ row.status|capitalize }}</td>
+            <td>
+                <a href="/edit_payment/{{ row.payment_id }}">Edit</a> |
+                <a href="/delete_payment/{{ row.payment_id }}"
+                   onclick="return confirm('Delete payment #{{ row.payment_id }}?')">Delete</a>
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

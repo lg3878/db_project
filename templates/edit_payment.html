@@ -1,0 +1,53 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Edit Payment #{{ payment.payment_id }}</h1>
+ 
+<!-- Read-only context -->
+<p><strong>Type:</strong> {{ payment.payment_type|capitalize }}</p>
+<p><strong>Member ID:</strong> {{ payment.member_id }}</p>
+{% if payment.payment_type == 'membership' %}
+<p><strong>Membership Record ID:</strong> {{ payment.member_membership_id }}</p>
+{% else %}
+<p><strong>Class Enrollment ID:</strong> {{ payment.class_enrollment_id }}</p>
+{% endif %}
+ 
+<hr>
+ 
+<!-- Editable fields -->
+<form method="POST">
+    <label>Amount ($):
+        <input type="number" name="amount" step="0.01" min="0"
+               value="{{ payment.amount }}" required>
+    </label><br>
+ 
+    <label>Payment Date:
+        <input type="date" name="payment_date"
+               value="{{ payment.payment_date }}" required>
+    </label><br>
+ 
+    <label>Payment Method:
+        <select name="payment_method" required>
+            {% for method in payment_methods %}
+            <option value="{{ method }}"
+                {% if payment.payment_method == method %}selected{% endif %}>
+                {{ method|capitalize }}
+            </option>
+            {% endfor %}
+        </select>
+    </label><br>
+ 
+    <label>Status:
+        <select name="status" required>
+            {% for s in payment_statuses %}
+            <option value="{{ s }}"
+                {% if payment.status == s %}selected{% endif %}>
+                {{ s|capitalize }}
+            </option>
+            {% endfor %}
+        </select>
+    </label><br>
+ 
+    <button type="submit">Save Changes</button>
+    <a href="/payments">Cancel</a>
+</form>
+{% endblock %}

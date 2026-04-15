@@ -643,6 +643,8 @@ Trainer table
 Create is done in staff functions above
 
 """
+
+
 def get_trainers():
     cursor = db.cursor(dictionary=True)
     query = """
@@ -1027,6 +1029,200 @@ def delete_equipment(equipment_id):
 """
 Payments
 """
+
+PAYMENT_METHODS = ['card', 'cash', 'bank transfer', 'check', 'online'] # for drop down menu rather than a freeform text field
+ 
+ 
+def get_all_payments():
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT
+            p.payment_id,
+            p.amount,
+            p.payment_date,
+            p.payment_method,
+            p.status,
+            p.payment_type,
+            m.member_id,
+            m.name AS member_name,
+            ms.membership_name,
+            ct.class_name
+        FROM payments p
+        JOIN member m ON p.member_id = m.member_id
+        LEFT JOIN member_membership mm ON p.member_membership_id = mm.member_membership_id
+        LEFT JOIN memberships ms ON mm.membership_id = ms.membership_id
+        LEFT JOIN class_enrollment ce ON p.class_enrollment_id = ce.class_enrollment_id
+        LEFT JOIN classes c ON ce.class_id = c.class_id
+        LEFT JOIN class_type ct ON c.class_type_id = ct.class_type_id
+        ORDER BY p.payment_date DESC
+    """
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
+@app.route('/payments')
+def payments():
+    all_payments = get_all_payments()
+    # Collect unique members for filter dropdown
+    members_seen = {}
+    for p in all_payments:
+        members_seen[p['member_id']] = p['member_name']
+    return render_template(
+        'payments.html',
+        name='Payments',
+        rows=all_payments,
+        members=members_seen,
+        payment_statuses=['pending', 'completed', 'failed', 'refunded'],
+        payment_types=['membership', 'class']
+    )
+
+
+@app.route('/add_payment', methods=['GET', 'POST'])
+def add_payment():
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        member_id = request.form.get('member_id')
+        payment_type = request.form.get('payment_type')
+        payment_method = request.form.get('payment_method')
+        amount = request.form.get('amount')
+        payment_date = request.form.get('payment_date')
+        status = request.form.get('status')
+        member_membership_id = request.form.get('member_membership_id') or None
+        class_enrollment_id = request.form.get('class_enrollment_id') or None
+ 
+        # Enforce the check constraint in Python too
+        if payment_type == 'membership' and not member_membership_id:
+            cursor.close()
+            return "Error: membership payment requires a membership selection. <a href='/add_payment'>Go back</a>"
+        if payment_type == 'class' and not class_enrollment_id:
+            cursor.close()
+            return "Error: class payment requires a class enrollment selection. <a href='/add_payment'>Go back</a>"
+ 
+        try:
+            cursor.execute("""
+                INSERT INTO payments
+                    (member_id, amount, payment_date, payment_method, status,
+                     payment_type, member_membership_id, class_enrollment_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (member_id, amount, payment_date, payment_method, status,
+                  payment_type, member_membership_id, class_enrollment_id))
+            db.commit()
+            cursor.close()
+            return redirect('/payments')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error adding payment: {str(e)} <a href='/add_payment'>Go back</a>"
+ 
+    # GET: just load the member list; memberships/classes are fetched via AJAX
+    cursor.execute("SELECT member_id, name FROM member ORDER BY name")
+    members = cursor.fetchall()
+    cursor.close()
+ 
+    return render_template(
+        'add_payment.html',
+        name='Add Payment',
+        members=members,
+        payment_methods=PAYMENT_METHODS,
+        payment_statuses=['pending', 'completed', 'failed', 'refunded']
+    )
+
+
+@app.route('/get_member_payment_targets/<int:member_id>')
+def get_member_payment_targets(member_id):
+    """AJAX endpoint: returns active memberships and class enrollments for a member."""
+    cursor = db.cursor(dictionary=True)
+ 
+    cursor.execute("""
+        SELECT mm.member_membership_id, ms.membership_name, mm.start_date, mm.end_date
+        FROM member_membership mm
+        JOIN memberships ms ON mm.membership_id = ms.membership_id
+        WHERE mm.member_id = %s
+          AND (mm.end_date IS NULL OR mm.end_date >= CURDATE())
+        ORDER BY mm.start_date DESC
+    """, (member_id,))
+    memberships = cursor.fetchall()
+ 
+    cursor.execute("""
+        SELECT ce.class_enrollment_id, ct.class_name, c.scheduled_time, ce.attendance_status
+        FROM class_enrollment ce
+        JOIN classes c ON ce.class_id = c.class_id
+        JOIN class_type ct ON c.class_type_id = ct.class_type_id
+        WHERE ce.member_id = %s
+        ORDER BY c.scheduled_time DESC
+    """, (member_id,))
+    enrollments = cursor.fetchall()
+ 
+    cursor.close()
+ 
+    # Convert dates/datetimes to strings for JSON serialisation
+    for m in memberships:
+        m['start_date'] = str(m['start_date'])
+        m['end_date'] = str(m['end_date']) if m['end_date'] else None
+    for e in enrollments:
+        e['scheduled_time'] = str(e['scheduled_time'])
+ 
+    return jsonify({'memberships': memberships, 'enrollments': enrollments})
+ 
+ 
+@app.route('/edit_payment/<int:payment_id>', methods=['GET', 'POST'])
+def edit_payment(payment_id):
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        payment_method = request.form.get('payment_method')
+        amount = request.form.get('amount')
+        payment_date = request.form.get('payment_date')
+        status = request.form.get('status')
+ 
+        try:
+            # Only allow editing non-structural fields; payment_type and
+            # the membership/class link are immutable after creation.
+            cursor.execute("""
+                UPDATE payments
+                SET amount = %s, payment_date = %s, payment_method = %s, status = %s
+                WHERE payment_id = %s
+            """, (amount, payment_date, payment_method, status, payment_id))
+            db.commit()
+            cursor.close()
+            return redirect('/payments')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error updating payment: {str(e)} <a href='/edit_payment/{payment_id}'>Go back</a>"
+ 
+    cursor.execute("SELECT * FROM payments WHERE payment_id = %s", (payment_id,))
+    payment = cursor.fetchone()
+    cursor.close()
+ 
+    if not payment:
+        return "Payment not found. <a href='/payments'>Go back</a>"
+ 
+    return render_template(
+        'edit_payment.html',
+        name='Edit Payment',
+        payment=payment,
+        payment_methods=PAYMENT_METHODS,
+        payment_statuses=['pending', 'completed', 'failed', 'refunded']
+    )
+ 
+ 
+@app.route('/delete_payment/<int:payment_id>')
+def delete_payment(payment_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("DELETE FROM payments WHERE payment_id = %s", (payment_id,))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deleting payment: {str(e)} <a href='/payments'>Go back</a>"
+ 
+    cursor.close()
+    return redirect('/payments')
+
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
