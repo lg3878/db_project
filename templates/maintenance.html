@@ -1,0 +1,63 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Maintenance Log</h1>
+<a href="/add_maintenance">+ Log Maintenance</a>
+ 
+<form method="GET" action="/maintenance" style="margin: 1rem 0;">
+    <label>Equipment:
+        <select name="equipment_id">
+            <option value="">All Equipment</option>
+            {% for eid, ename in equipment_map.items() %}
+            <option value="{{ eid }}"
+                {% if request.args.get('equipment_id')|int == eid %}selected{% endif %}>
+                {{ ename }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+ 
+    <label>Staff:
+        <select name="staff_id">
+            <option value="">All Staff</option>
+            {% for sid, sname in staff_map.items() %}
+            <option value="{{ sid }}"
+                {% if request.args.get('staff_id')|int == sid %}selected{% endif %}>
+                {{ sname }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+ 
+    <button type="submit">Filter</button>
+    <a href="/maintenance">Clear</a>
+</form>
+ 
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Equipment</th>
+            <th>Date</th>
+            <th>Staff</th>
+            <th>Role</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set filter_eq    = request.args.get('equipment_id', '') %}
+        {% set filter_staff = request.args.get('staff_id', '') %}
+ 
+        {% for row in rows %}
+        {% if (not filter_eq    or row.equipment_id|string == filter_eq) and
+              (not filter_staff or row.staff_id|string    == filter_staff) %}
+        <tr>
+            <td>{{ row.maintenance_id }}</td>
+            <td><a href="/equipment_page/{{ row.equipment_id }}">{{ row.equipment_name }}</a></td>
+            <td>{{ row.maintenance_date }}</td>
+            <td><a href="/staff_page/{{ row.staff_id }}">{{ row.staff_name }}</a></td>
+            <td>{{ row.staff_role }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

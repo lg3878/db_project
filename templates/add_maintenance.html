@@ -1,0 +1,42 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Log Maintenance</h1>
+ 
+<form method="POST">
+    <!-- Hidden field so the route knows where to redirect after submit -->
+    <input type="hidden" name="came_from"
+           value="{{ 'equipment_page' if preselected_equipment_id else 'maintenance' }}">
+ 
+    <label>Equipment:
+        <select name="equipment_id" required>
+            <option value="">-- Select equipment --</option>
+            {% for item in all_equipment %}
+            <option value="{{ item.equipment_id }}"
+                {% if preselected_equipment_id == item.equipment_id %}selected{% endif %}>
+                {{ item.equipment_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label><br>
+ 
+    <label>Staff Member:
+        <select name="staff_id" required>
+            <option value="">-- Select staff --</option>
+            {% for s in all_staff %}
+            <option value="{{ s.staff_id }}">{{ s.name }} ({{ s.role }})</option>
+            {% endfor %}
+        </select>
+    </label><br>
+ 
+    <label>Maintenance Date:
+        <input type="date" name="maintenance_date" required>
+    </label><br>
+ 
+    <button type="submit">Log Maintenance</button>
+    {% if preselected_equipment_id %}
+        <a href="/equipment_page/{{ preselected_equipment_id }}">Cancel</a>
+    {% else %}
+        <a href="/maintenance">Cancel</a>
+    {% endif %}
+</form>
+{% endblock %}

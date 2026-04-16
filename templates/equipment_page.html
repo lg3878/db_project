@@ -9,6 +9,8 @@
    onclick="return confirm('Delete this equipment and all its maintenance records?')">Delete</a>
  
 <h2>Maintenance History</h2>
+<a href="/add_maintenance/{{ e.equipment_id }}">+ Log Maintenance</a>
+ 
 {% if e.maintenance_id %}
 <table>
     <thead>

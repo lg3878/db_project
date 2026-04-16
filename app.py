@@ -1224,5 +1224,96 @@ def delete_payment(payment_id):
     return redirect('/payments')
 
 
+"""
+Maintenance
+"""
+
+def get_all_maintenance():
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT
+            m.maintenance_id,
+            m.maintenance_date,
+            e.equipment_id,
+            e.equipment_name,
+            s.staff_id,
+            s.name AS staff_name,
+            s.role AS staff_role
+        FROM maintenance m
+        JOIN equipment e ON m.equipment_id = e.equipment_id
+        JOIN staff s ON m.staff_id = s.staff_id
+        ORDER BY m.maintenance_date DESC
+    """
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+ 
+ 
+@app.route('/maintenance')
+def maintenance():
+    all_maintenance = get_all_maintenance()
+    # Build unique equipment and staff lists for filter dropdowns
+    equipment_seen = {}
+    staff_seen = {}
+    for row in all_maintenance:
+        equipment_seen[row['equipment_id']] = row['equipment_name']
+        staff_seen[row['staff_id']] = row['staff_name']
+    return render_template(
+        'maintenance.html',
+        name='Maintenance',
+        rows=all_maintenance,
+        equipment_map=equipment_seen,
+        staff_map=staff_seen
+    )
+ 
+ 
+@app.route('/add_maintenance', methods=['GET', 'POST'])
+@app.route('/add_maintenance/<int:equipment_id>', methods=['GET', 'POST'])
+def add_maintenance(equipment_id=None):
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        eq_id = request.form.get('equipment_id')
+        staff_id = request.form.get('staff_id')
+        maintenance_date = request.form.get('maintenance_date')
+ 
+        try:
+            cursor.execute("""
+                INSERT INTO maintenance (equipment_id, staff_id, maintenance_date)
+                VALUES (%s, %s, %s)
+            """, (eq_id, staff_id, maintenance_date))
+            db.commit()
+            cursor.close()
+            # Return to equipment page if we came from there, otherwise maintenance list
+            came_from = request.form.get('came_from')
+            if came_from == 'equipment_page':
+                return redirect(f'/equipment_page/{eq_id}')
+            return redirect('/maintenance')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error logging maintenance: {str(e)} <a href='/add_maintenance'>Go back</a>"
+ 
+    cursor.execute("SELECT equipment_id, equipment_name FROM equipment ORDER BY equipment_name")
+    all_equipment = cursor.fetchall()
+ 
+    cursor.execute("""
+        SELECT staff_id, name, role FROM staff
+        WHERE status = 'Active'
+        ORDER BY name
+    """)
+    all_staff = cursor.fetchall()
+    cursor.close()
+ 
+    return render_template(
+        'add_maintenance.html',
+        name='Log Maintenance',
+        all_equipment=all_equipment,
+        all_staff=all_staff,
+        preselected_equipment_id=equipment_id
+    )
+
+
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
