@@ -16,6 +16,8 @@
    onclick="return confirm('Are you sure you want to delete this class? This will remove all enrollments.')">
     Delete Class
 </a>
+<a href="/enroll/class/{{ rows[0].class_id }}">+ Enroll Member</a>
+
 
 <h2>Enrolled Members</h2>
 {% if rows[0].member_id %}

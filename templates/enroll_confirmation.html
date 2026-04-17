@@ -1,0 +1,24 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Enrollment Confirmed ✓</h1>
+ 
+<p><strong>{{ enrollment.member_name }}</strong> has been enrolled in
+   <strong>{{ enrollment.class_name }}</strong>.</p>
+ 
+<table>
+    <tr><th>Member</th><td>{{ enrollment.member_name }}</td></tr>
+    <tr><th>Email</th><td>{{ enrollment.email }}</td></tr>
+    <tr><th>Class</th><td>{{ enrollment.class_name }}</td></tr>
+    <tr><th>Scheduled</th><td>{{ enrollment.scheduled_time }}</td></tr>
+    <tr><th>Duration</th><td>{{ enrollment.duration_minutes }} minutes</td></tr>
+    <tr><th>Trainer</th><td>{{ enrollment.trainer_name }}</td></tr>
+</table>
+ 
+<br>
+{% if came_from == 'class' %}
+    <a href="/class_page/{{ enrollment.class_id }}">Back to Class</a> |
+{% else %}
+    <a href="/member_page/{{ enrollment.member_id }}">Back to Member</a> |
+{% endif %}
+<a href="/enroll">Enroll Another</a>
+{% endblock %}

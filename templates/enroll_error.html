@@ -1,0 +1,12 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Enrollment Failed</h1>
+ 
+<p style="color: red;">{{ error }}</p>
+ 
+{% if came_from == 'class' %}
+    <a href="/enroll/class/{{ class_id }}">Go back</a>
+{% else %}
+    <a href="/enroll/member/{{ member_id }}">Go back</a>
+{% endif %}
+{% endblock %}

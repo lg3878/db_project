@@ -1,0 +1,56 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Enroll Member in Class</h1>
+ 
+<form method="POST">
+    <input type="hidden" name="came_from" value="{{ came_from }}">
+ 
+    <!-- Member: pre-filled or dropdown -->
+    {% if preselected_member %}
+        <input type="hidden" name="member_id" value="{{ preselected_member.member_id }}">
+        <p><strong>Member:</strong> {{ preselected_member.name }}</p>
+    {% else %}
+        <label>Member:
+            <select name="member_id" required>
+                <option value="">-- Select member --</option>
+                {% for m in all_members %}
+                <option value="{{ m.member_id }}">{{ m.name }}</option>
+                {% endfor %}
+            </select>
+        </label><br>
+    {% endif %}
+ 
+    <!-- Class: pre-filled or dropdown -->
+    {% if preselected_class %}
+        <input type="hidden" name="class_id" value="{{ preselected_class.class_id }}">
+        <p><strong>Class:</strong> {{ preselected_class.class_name }}
+            on {{ preselected_class.scheduled_time }}</p>
+        <p><strong>Spots remaining:</strong>
+            {{ preselected_class.capacity - preselected_class.enrolled }}
+            / {{ preselected_class.capacity }}</p>
+    {% else %}
+        <label>Class:
+            <select name="class_id" required>
+                <option value="">-- Select class --</option>
+                {% for c in all_classes %}
+                <option value="{{ c.class_id }}">
+                    {{ c.class_name }} — {{ c.scheduled_time }}
+                    ({{ c.capacity - c.enrolled }} spots left)
+                </option>
+                {% endfor %}
+            </select>
+        </label><br>
+    {% endif %}
+ 
+    <br>
+    <button type="submit">Enroll</button>
+ 
+    {% if came_from == 'class' and preselected_class %}
+        <a href="/class_page/{{ preselected_class.class_id }}">Cancel</a>
+    {% elif came_from == 'member' and preselected_member %}
+        <a href="/member_page/{{ preselected_member.member_id }}">Cancel</a>
+    {% else %}
+        <a href="/classes">Cancel</a>
+    {% endif %}
+</form>
+{% endblock %}

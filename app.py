@@ -1315,5 +1315,124 @@ def add_maintenance(equipment_id=None):
     )
 
 
+"""
+Class Enrollment Route
+
+"""
+
+@app.route('/enroll', methods=['GET', 'POST'])
+@app.route('/enroll/class/<int:class_id>', methods=['GET', 'POST'])
+@app.route('/enroll/member/<int:member_id>', methods=['GET', 'POST'])
+def enroll(class_id=None, member_id=None):
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        enroll_class_id  = request.form.get('class_id')
+        enroll_member_id = request.form.get('member_id')
+        came_from        = request.form.get('came_from', 'class')
+ 
+        try:
+            cursor.callproc('enroll_member_in_class', [enroll_member_id, enroll_class_id])
+            db.commit()
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            # Surface the stored procedure's SIGNAL messages cleanly
+            return render_template(
+                'enroll_error.html',
+                error=str(e),
+                class_id=enroll_class_id,
+                member_id=enroll_member_id,
+                came_from=came_from
+            )
+ 
+        # Fetch confirmation details
+        cursor.execute("""
+            SELECT
+                m.member_id,
+                m.name AS member_name,
+                m.email,
+                c.class_id,
+                ct.class_name,
+                c.scheduled_time,
+                c.duration_minutes,
+                s.name AS trainer_name
+            FROM member m
+            JOIN class_enrollment ce ON m.member_id = ce.member_id
+            JOIN classes c ON ce.class_id = c.class_id
+            JOIN class_type ct ON c.class_type_id = ct.class_type_id
+            JOIN staff s ON c.trainers_staff_id = s.staff_id
+            WHERE m.member_id = %s AND c.class_id = %s
+        """, (enroll_member_id, enroll_class_id))
+        enrollment = cursor.fetchone()
+        cursor.close()
+ 
+        return render_template(
+            'enroll_confirmation.html',
+            enrollment=enrollment,
+            came_from=came_from
+        )
+ 
+    # --- GET: build form ---
+ 
+    # Pre-load member if coming from member page
+    preselected_member = None
+    if member_id:
+        cursor.execute("SELECT member_id, name FROM member WHERE member_id = %s", (member_id,))
+        preselected_member = cursor.fetchone()
+ 
+    # Pre-load class if coming from class page
+    preselected_class = None
+    if class_id:
+        cursor.execute("""
+            SELECT c.class_id, ct.class_name, c.scheduled_time, c.capacity,
+                   (SELECT COUNT(*) FROM class_enrollment WHERE class_id = c.class_id) AS enrolled
+            FROM classes c
+            JOIN class_type ct ON c.class_type_id = ct.class_type_id
+            WHERE c.class_id = %s
+        """, (class_id,))
+        preselected_class = cursor.fetchone()
+ 
+    # Member dropdown (only needed when no member pre-selected)
+    all_members = []
+    if not member_id:
+        cursor.execute("""
+            SELECT member_id, name FROM member
+            WHERE status = 'Active'
+            ORDER BY name
+        """)
+        all_members = cursor.fetchall()
+ 
+    # Class dropdown (only needed when no class pre-selected)
+    all_classes = []
+    if not class_id:
+        cursor.execute("""
+            SELECT
+                c.class_id,
+                ct.class_name,
+                c.scheduled_time,
+                c.capacity,
+                (SELECT COUNT(*) FROM class_enrollment ce WHERE ce.class_id = c.class_id) AS enrolled
+            FROM classes c
+            JOIN class_type ct ON c.class_type_id = ct.class_type_id
+            HAVING (c.capacity - enrolled) > 0
+            ORDER BY c.scheduled_time
+        """)
+        all_classes = cursor.fetchall()
+ 
+    cursor.close()
+ 
+    came_from = 'class' if class_id else 'member'
+ 
+    return render_template(
+        'enroll.html',
+        name='Enroll Member',
+        preselected_member=preselected_member,
+        preselected_class=preselected_class,
+        all_members=all_members,
+        all_classes=all_classes,
+        came_from=came_from
+    )
+
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)
