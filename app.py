@@ -112,33 +112,57 @@ def delete_member(member_id):
     cursor.close()
     return redirect('/members')
 
+# utilizing active_membership view
+def get_member_page_data(member_id):
+    cursor = db.cursor(dictionary=True)
+ 
+    # Core membership rows from the view
+    cursor.execute("""
+        SELECT
+            member_id,
+            name,
+            email,
+            membership_name,
+            start_date,
+            end_date
+        FROM active_memberships
+        WHERE member_id = %s
+    """, (member_id,))
+    rows = cursor.fetchall()
+ 
+    if not rows:
+        cursor.close()
+        return None
+ 
+    # Extra fields not in the view
+    cursor.execute("""
+        SELECT m.phone, m.status, m.member_id, ms.price
+        FROM member m
+        JOIN member_membership mm ON m.member_id = mm.member_id
+        JOIN memberships ms ON mm.membership_id = ms.membership_id
+        WHERE m.member_id = %s
+          AND (mm.end_date IS NULL OR mm.end_date >= CURDATE())
+    """, (member_id,))
+    extras = {row['member_id']: row for row in cursor.fetchall()}
+    cursor.close()
+ 
+    # Merge extras into each view row
+    for row in rows:
+        extra = extras.get(row['member_id'], {})
+        row['phone']  = extra.get('phone')
+        row['status'] = extra.get('status')
+        row['price']  = extra.get('price')
+ 
+    return rows
+
+
 @app.route('/member_page/<int:member_id>')
 def member_page(member_id):
-    cursor = db.cursor(dictionary=True)
-    query = """
-    SELECT
-        m.name,
-        m.phone,
-        m.email,
-        m.status,
-        m.member_id,
-        ms.membership_name,
-        ms.price,
-        mm.start_date,
-        mm.end_date
-    FROM member m 
-    JOIN member_membership mm ON m.member_id = mm.member_id
-    JOIN memberships ms ON mm.membership_id = ms.membership_id
-    WHERE m.member_id = %s;
-    """
+    rows = get_member_page_data(member_id)
 
-    cursor.execute(query, (member_id,))
-    rows = cursor.fetchall()
-    cursor.close()
     if rows:
         return render_template('member_page.html', member_data=rows)
-    
-    return "Member not found <a href='/members'>Go back</a>"
+    return "Member not found <a href='/members'>Go Back</a>"
     
 
 @app.route('/assign_membership/<int:member_id>', methods=['GET', 'POST'])
@@ -688,11 +712,14 @@ def get_classes():
             c.duration_minutes,
             c.capacity,
             s.name AS trainer_name,
-            s.staff_id AS trainer_staff_id
+            s.staff_id AS trainer_staff_id,
+            (SELECT COUNT(*) FROM class_enrollment ce WHERE ce.class_id = c.class_id) AS enrolled_count,
+            (c.capacity - (SELECT COUNT(*) FROM class_enrollment ce WHERE ce.class_id = c.class_id)) AS spots_remaining
         FROM classes c
         JOIN class_type ct ON c.class_type_id = ct.class_type_id
         JOIN trainers t ON c.trainers_staff_id = t.staff_id
         JOIN staff s ON t.staff_id = s.staff_id
+        ORDER BY c.scheduled_time
     """
     cursor.execute(query)
     result = cursor.fetchall()
@@ -1035,31 +1062,17 @@ PAYMENT_METHODS = ['card', 'cash', 'bank transfer', 'check', 'online'] # for dro
  
 def get_all_payments():
     cursor = db.cursor(dictionary=True)
-    query = """
-        SELECT
-            p.payment_id,
-            p.amount,
-            p.payment_date,
-            p.payment_method,
-            p.status,
-            p.payment_type,
-            m.member_id,
-            m.name AS member_name,
-            ms.membership_name,
-            ct.class_name
-        FROM payments p
-        JOIN member m ON p.member_id = m.member_id
-        LEFT JOIN member_membership mm ON p.member_membership_id = mm.member_membership_id
-        LEFT JOIN memberships ms ON mm.membership_id = ms.membership_id
-        LEFT JOIN class_enrollment ce ON p.class_enrollment_id = ce.class_enrollment_id
-        LEFT JOIN classes c ON ce.class_id = c.class_id
-        LEFT JOIN class_type ct ON c.class_type_id = ct.class_type_id
-        ORDER BY p.payment_date DESC
-    """
-    cursor.execute(query)
+    # Uses the View: member_payment_details 
+    cursor.execute("""
+        SELECT *
+        FROM member_payment_details
+        ORDER BY payment_date DESC
+    """)
     result = cursor.fetchall()
     cursor.close()
     return result
+
+
 
 @app.route('/payments')
 def payments():
