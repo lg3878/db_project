@@ -5,6 +5,14 @@
 
     
     <h2>All Members</h2>
+    <form method="GET" action="/members" style="margin: 1rem 0;">
+    <label>
+        <input type="checkbox" name="active_only" value="1"
+               {% if active_only %}checked{% endif %}
+               onchange="this.form.submit()">
+        Show active members only
+    </label>
+</form>
     <div class="table-container">
         {% if all_members_rows and all_members_rows|length > 0 %}
         <table>
@@ -36,6 +44,9 @@
 
     {% endif %}
     </div>
+
+
+
 
     <h2>Add Member</h2>
 <a href="/add_member">Add Member</a>

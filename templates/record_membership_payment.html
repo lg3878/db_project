@@ -1,0 +1,29 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Record Membership Payment</h1>
+<p><strong>Member:</strong> {{ member.name }}</p>
+ 
+<form method="POST">
+    <label>Membership:
+        <select name="membership_id" required>
+            {% for ms in active_memberships %}
+            <option value="{{ ms.membership_id }}">
+                {{ ms.membership_name }} (standard price: ${{ "%.2f"|format(ms.price) }})
+            </option>
+            {% endfor %}
+        </select>
+    </label><br>
+ 
+    <label>Amount ($):
+        <input type="number" name="amount" step="0.01" min="0"
+               value="{{ "%.2f"|format(active_memberships[0].price) }}" required>
+    </label><br>
+ 
+    <p style="color: gray; font-size: 0.9em;">
+        Payment will be recorded as <strong>card</strong> / <strong>completed</strong> dated today.
+    </p>
+ 
+    <button type="submit">Record Payment</button>
+    <a href="/member_page/{{ member_id }}">Cancel</a>
+</form>
+{% endblock %}

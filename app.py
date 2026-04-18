@@ -28,6 +28,20 @@ def get_all_members():
     cursor.close()
     return result
 
+# using is_member_active
+def get_all_members(active_only=False):
+    cursor = db.cursor(dictionary=True)
+    if active_only:
+        cursor.execute("""
+            SELECT * FROM member
+            WHERE is_member_active(member_id) = TRUE
+        """)
+    else:
+        cursor.execute("SELECT * FROM member")
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
 
 @app.route('/')
 def home():
@@ -36,8 +50,9 @@ def home():
 
 @app.route('/members')
 def members():
-    all_members = get_all_members()
-    return render_template('members.html', name="Members Table", all_members_rows=all_members)
+    active_only = request.args.get('active_only') == '1'
+    all_members = get_all_members(active_only=active_only)
+    return render_template('members.html', name="Members Table", all_members_rows=all_members, active_only=active_only)
 
 
 @app.route('/add_member', methods=['GET','POST'])
@@ -160,10 +175,18 @@ def get_member_page_data(member_id):
 def member_page(member_id):
     rows = get_member_page_data(member_id)
 
-    if rows:
-        return render_template('member_page.html', member_data=rows)
-    return "Member not found <a href='/members'>Go Back</a>"
+    if not rows:
+        return "Member not found <a href='/members'>Go back</a>"
     
+    #Get total payments for this member
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("SELECT get_total_payments(%s) AS total_paid", (member_id,))
+    total_paid = cursor.fetchone()['total_paid']
+    cursor.close()
+
+    return render_template('member_page.html', member_data=rows, total_paid=total_paid)
+
 
 @app.route('/assign_membership/<int:member_id>', methods=['GET', 'POST'])
 def assign_membership(member_id):
@@ -799,12 +822,18 @@ def class_page(class_id):
     """
     cursor.execute(query, (class_id,))
     rows = cursor.fetchall()
-    cursor.close()
-
+ 
     if not rows:
+        cursor.close()
         return "Class not found. <a href='/classes'>Go back</a>"
+ 
+    # Call DB function for available spots
+    cursor.execute("SELECT get_available_spots(%s) AS available_spots", (class_id,))
+    available_spots = cursor.fetchone()['available_spots']
+    cursor.close()
+ 
+    return render_template('class_page.html', rows=rows, available_spots=available_spots)
 
-    return render_template('class_page.html', rows=rows)
 
 @app.route('/edit_class/<int:class_id>', methods=['GET', 'POST'])
 def edit_class(class_id):
@@ -1235,6 +1264,49 @@ def delete_payment(payment_id):
  
     cursor.close()
     return redirect('/payments')
+
+#calling the add_membership_payment function
+@app.route('/record_membership_payment/<int:member_id>', methods=['GET', 'POST'])
+def record_membership_payment(member_id):
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        membership_id = request.form.get('membership_id')
+        amount = request.form.get('amount')
+ 
+        try:
+            cursor.callproc('add_membership_payment', [member_id, membership_id, amount])
+            db.commit()
+            cursor.close()
+            return redirect(f'/member_page/{member_id}')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error recording payment: {str(e)} <a href='/record_membership_payment/{member_id}'>Go back</a>"
+ 
+    # GET: fetch active membership(s) for this member to populate the form
+    cursor.execute("""
+        SELECT mm.member_membership_id, mm.membership_id, ms.membership_name, ms.price
+        FROM member_membership mm
+        JOIN memberships ms ON mm.membership_id = ms.membership_id
+        WHERE mm.member_id = %s
+          AND (mm.end_date IS NULL OR mm.end_date >= CURDATE())
+    """, (member_id,))
+    active_memberships = cursor.fetchall()
+ 
+    cursor.execute("SELECT name FROM member WHERE member_id = %s", (member_id,))
+    member = cursor.fetchone()
+    cursor.close()
+ 
+    if not active_memberships:
+        return f"No active membership found for this member. <a href='/member_page/{member_id}'>Go back</a>"
+ 
+    return render_template(
+        'record_membership_payment.html',
+        member_id=member_id,
+        member=member,
+        active_memberships=active_memberships
+    )
 
 
 """

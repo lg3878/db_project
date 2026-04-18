@@ -37,7 +37,11 @@
             <a href="/activate_member/{{ member_data[0].member_id }}" onclick="return confirm('Activate this member?');">Activate</a>
             {% endif %}
         <a href="/enroll/member/{{ member_data[0].member_id }}">+ Enroll in Class</a>
+
+        <a href="/record_membership_payment/{{ member_data[0].member_id }}">+ Record Membership Payment</a>
     </div>
+
+    <p><strong>Total Paid:</strong> ${{ "%.2f"|format(total_paid) }}</p>
 
 
 {% endblock %}
