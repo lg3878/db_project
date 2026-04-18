@@ -144,31 +144,55 @@ def get_member_page_data(member_id):
         WHERE member_id = %s
     """, (member_id,))
     rows = cursor.fetchall()
- 
-    if not rows:
+    
+    if rows:
+        # Extra fields not in the view
+        cursor.execute("""
+            SELECT m.phone, m.status, m.member_id, ms.price
+            FROM member m
+            JOIN member_membership mm ON m.member_id = mm.member_id
+            JOIN memberships ms ON mm.membership_id = ms.membership_id
+            WHERE m.member_id = %s
+            AND (mm.end_date IS NULL OR mm.end_date >= CURDATE())
+        """, (member_id,))
+        extras = {row['member_id']: row for row in cursor.fetchall()}
         cursor.close()
-        return None
- 
-    # Extra fields not in the view
-    cursor.execute("""
-        SELECT m.phone, m.status, m.member_id, ms.price
-        FROM member m
-        JOIN member_membership mm ON m.member_id = mm.member_id
-        JOIN memberships ms ON mm.membership_id = ms.membership_id
-        WHERE m.member_id = %s
-          AND (mm.end_date IS NULL OR mm.end_date >= CURDATE())
-    """, (member_id,))
-    extras = {row['member_id']: row for row in cursor.fetchall()}
-    cursor.close()
- 
-    # Merge extras into each view row
-    for row in rows:
-        extra = extras.get(row['member_id'], {})
-        row['phone']  = extra.get('phone')
-        row['status'] = extra.get('status')
-        row['price']  = extra.get('price')
- 
-    return rows
+    
+        # Merge extras into each view row
+        for row in rows:
+            extra = extras.get(row['member_id'], {})
+            row['phone']  = extra.get('phone')
+            row['status'] = extra.get('status')
+            row['price']  = extra.get('price')
+        
+        return rows
+
+    else:
+        # fall back in case member exists but has no active membership
+        # Fallback: member exists but has no active membership
+        cursor.execute("""
+            SELECT member_id, name, email, phone, status
+            FROM member
+            WHERE member_id = %s
+        """, (member_id,))
+        member = cursor.fetchone()
+        cursor.close()
+
+        if not member:
+            return None
+    
+        return [{
+            'member_id':      member['member_id'],
+            'name':           member['name'],
+            'email':          member['email'],
+            'phone':          member['phone'],
+            'status':         member['status'],
+            'membership_name': None,
+            'start_date':     None,
+            'end_date':       None,
+            'price':          None,
+        }]
+    
 
 
 @app.route('/member_page/<int:member_id>')
