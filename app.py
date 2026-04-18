@@ -980,6 +980,80 @@ def add_class_type():
     return render_template('add_class_type.html', name='Add Class Type')
 
 
+@app.route('/edit_class_type/<int:class_type_id>', methods=['GET', 'POST'])
+def edit_class_type(class_type_id):
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        class_name = request.form.get('class_name')
+        difficulty_level = request.form.get('difficulty_level')
+ 
+        try:
+            cursor.execute("""
+                UPDATE class_type
+                SET class_name = %s, difficulty_level = %s
+                WHERE class_type_id = %s
+            """, (class_name, difficulty_level, class_type_id))
+            db.commit()
+            cursor.close()
+            return redirect('/class_types')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error updating class type: {str(e)} <a href='/edit_class_type/{class_type_id}'>Go back</a>"
+ 
+    cursor.execute("SELECT * FROM class_type WHERE class_type_id = %s", (class_type_id,))
+    class_type = cursor.fetchone()
+    cursor.close()
+ 
+    if not class_type:
+        return "Class type not found. <a href='/class_types'>Go back</a>"
+ 
+    return render_template('edit_class_type.html', name='Edit Class Type', class_type=class_type)
+ 
+ 
+@app.route('/delete_class_type/<int:class_type_id>')
+def delete_class_type(class_type_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        # Get all class_ids that use this type
+        cursor.execute("SELECT class_id FROM classes WHERE class_type_id = %s", (class_type_id,))
+        class_ids = [row['class_id'] for row in cursor.fetchall()]
+ 
+        if class_ids:
+            fmt = ','.join(['%s'] * len(class_ids))
+ 
+            # Delete payments tied to enrollments in those classes
+            cursor.execute(f"""
+                DELETE FROM payments WHERE class_enrollment_id IN (
+                    SELECT class_enrollment_id FROM class_enrollment
+                    WHERE class_id IN ({fmt})
+                )
+            """, class_ids)
+ 
+            # Delete enrollments
+            cursor.execute(f"""
+                DELETE FROM class_enrollment WHERE class_id IN ({fmt})
+            """, class_ids)
+ 
+            # Delete the classes themselves
+            cursor.execute(f"""
+                DELETE FROM classes WHERE class_id IN ({fmt})
+            """, class_ids)
+ 
+        # Delete the class type
+        cursor.execute("DELETE FROM class_type WHERE class_type_id = %s", (class_type_id,))
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deleting class type: {str(e)} <a href='/class_types'>Go back</a>"
+ 
+    cursor.close()
+    return redirect('/class_types')
+
+
+
 """
 Equipment
 """
@@ -1289,6 +1363,7 @@ def delete_payment(payment_id):
     cursor.close()
     return redirect('/payments')
 
+
 #calling the add_membership_payment function
 @app.route('/record_membership_payment/<int:member_id>', methods=['GET', 'POST'])
 def record_membership_payment(member_id):
@@ -1481,9 +1556,7 @@ def enroll(class_id=None, member_id=None):
             enrollment=enrollment,
             came_from=came_from
         )
- 
-    # --- GET: build form ---
- 
+  
     # Pre-load member if coming from member page
     preselected_member = None
     if member_id:

@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Edit Class Type</h1>
+<form method="POST">
+    <label>Class Name:
+        <input type="text" name="class_name" value="{{ class_type.class_name }}" required>
+    </label><br>
+    <label>Difficulty Level:
+        <select name="difficulty_level">
+            {% for level in ['Beginner', 'Intermediate', 'Advanced'] %}
+            <option value="{{ level }}"
+                {% if class_type.difficulty_level == level %}selected{% endif %}>
+                {{ level }}
+            </option>
+            {% endfor %}
+        </select>
+    </label><br>
+    <button type="submit">Save Changes</button>
+    <a href="/class_types">Cancel</a>
+</form>
+{% endblock %}
