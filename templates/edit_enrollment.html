@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Edit Enrollment</h1>
+<p><strong>Member:</strong> {{ enrollment.member_name }}</p>
+<p><strong>Class:</strong> {{ enrollment.class_name }} on {{ enrollment.scheduled_time }}</p>
+<p><strong>Signed up:</strong> {{ enrollment.signup_date }}</p>
+ 
+<form method="POST">
+    <input type="hidden" name="came_from_class" value="{{ enrollment.class_id }}">
+    <label>Attendance Status:
+        <select name="attendance_status" required>
+            {% for status in statuses %}
+            <option value="{{ status }}"
+                {% if enrollment.attendance_status == status %}selected{% endif %}>
+                {{ status|capitalize }}
+            </option>
+            {% endfor %}
+        </select>
+    </label><br>
+    <button type="submit">Save</button>
+    <a href="/class_page/{{ enrollment.class_id }}">Cancel</a>
+</form>
+{% endblock %}

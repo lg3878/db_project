@@ -835,6 +835,7 @@ def class_page(class_id):
             m.member_id,
             m.name AS member_name,
             m.email,
+            ce.class_enrollment_id,
             ce.attendance_status,
             ce.signup_date
         FROM classes c
@@ -1615,6 +1616,95 @@ def enroll(class_id=None, member_id=None):
         all_classes=all_classes,
         came_from=came_from
     )
+
+@app.route('/edit_enrollment/<int:class_enrollment_id>', methods=['GET', 'POST'])
+def edit_enrollment(class_enrollment_id):
+    cursor = db.cursor(dictionary=True)
+ 
+    if request.method == 'POST':
+        attendance_status = request.form.get('attendance_status')
+        came_from_class = request.form.get('came_from_class')
+ 
+        try:
+            cursor.execute("""
+                UPDATE class_enrollment
+                SET attendance_status = %s
+                WHERE class_enrollment_id = %s
+            """, (attendance_status, class_enrollment_id))
+            db.commit()
+            cursor.close()
+            if came_from_class:
+                return redirect(f'/class_page/{came_from_class}')
+            return redirect('/classes')
+        except Error as e:
+            db.rollback()
+            cursor.close()
+            return f"Error updating enrollment: {str(e)} <a href='/edit_enrollment/{class_enrollment_id}'>Go back</a>"
+ 
+    # Fetch enrollment + context for display
+    cursor.execute("""
+        SELECT
+            ce.class_enrollment_id,
+            ce.attendance_status,
+            ce.signup_date,
+            ce.class_id,
+            m.name AS member_name,
+            ct.class_name,
+            c.scheduled_time
+        FROM class_enrollment ce
+        JOIN member m ON ce.member_id = m.member_id
+        JOIN classes c ON ce.class_id = c.class_id
+        JOIN class_type ct ON c.class_type_id = ct.class_type_id
+        WHERE ce.class_enrollment_id = %s
+    """, (class_enrollment_id,))
+    enrollment = cursor.fetchone()
+    cursor.close()
+ 
+    if not enrollment:
+        return "Enrollment not found. <a href='/classes'>Go back</a>"
+ 
+    return render_template(
+        'edit_enrollment.html',
+        name='Edit Enrollment',
+        enrollment=enrollment,
+        statuses=['registered', 'attended', 'missed', 'cancelled']
+    )
+ 
+ 
+@app.route('/delete_enrollment/<int:class_enrollment_id>')
+def delete_enrollment(class_enrollment_id):
+    cursor = db.cursor(dictionary=True)
+    try:
+        # Get class_id before deleting for redirect
+        cursor.execute("""
+            SELECT class_id FROM class_enrollment
+            WHERE class_enrollment_id = %s
+        """, (class_enrollment_id,))
+        row = cursor.fetchone()
+        class_id = row['class_id'] if row else None
+ 
+        # Delete any payment tied to this enrollment first
+        cursor.execute("""
+            DELETE FROM payments
+            WHERE class_enrollment_id = %s
+        """, (class_enrollment_id,))
+ 
+        # Delete the enrollment
+        cursor.execute("""
+            DELETE FROM class_enrollment
+            WHERE class_enrollment_id = %s
+        """, (class_enrollment_id,))
+ 
+        db.commit()
+    except Error as e:
+        db.rollback()
+        cursor.close()
+        return f"Error deleting enrollment: {str(e)} <a href='/classes'>Go back</a>"
+ 
+    cursor.close()
+    if class_id:
+        return redirect(f'/class_page/{class_id}')
+    return redirect('/classes')
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)

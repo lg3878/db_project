@@ -29,6 +29,7 @@
             <th>Email</th>
             <th>Signup Date</th>
             <th>Attendance</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -39,6 +40,9 @@
             <td>{{ row.email }}</td>
             <td>{{ row.signup_date }}</td>
             <td>{{ row.attendance_status }}</td>
+            <td><a href="/edit_enrollment/{{ row.class_enrollment_id }}">Edit Status</a> |
+            <a href="/delete_enrollment/{{ row.class_enrollment_id }}"
+                onclick="return confirm('Remove this enrollment?')">Remove</a></td>
         </tr>
         {% endif %}
         {% endfor %}
