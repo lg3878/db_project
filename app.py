@@ -1706,5 +1706,119 @@ def delete_enrollment(class_enrollment_id):
         return redirect(f'/class_page/{class_id}')
     return redirect('/classes')
 
+"""
+Reports
+"""
+
+@app.route('/reports')
+def reports():
+    cursor = db.cursor(dictionary=True)
+
+    # Total Revenue by membership tier
+    cursor.execute("""
+        SELECT
+            ms.membership_name,
+            COUNT(p.payment_id) AS payment_count,
+            SUM(p.amount) AS total_revenue
+        FROM payments p
+        JOIN member_membership mm ON p.member_membership_id = mm.member_membership_id
+        JOIN memberships ms ON mm.membership_id = ms.membership_id
+        WHERE p.status = 'completed'
+        GROUP BY ms.membership_name
+        ORDER BY total_revenue DESC
+    """)
+    revenue_by_tier = cursor.fetchall()
+
+    # Enrollment count and attendance breakdown per class
+    cursor.execute("""
+        SELECT
+            ct.class_name,
+            c.scheduled_time,
+            c.capacity,
+            COUNT(ce.class_enrollment_id) AS total_enrolled,
+            SUM(ce.attendance_status = 'attended') AS attended,
+            SUM(ce.attendance_status = 'missed') AS missed,
+            SUM(ce.attendance_status = 'cancelled') AS cancelled,
+            SUM(ce.attendance_status = 'registered') AS registered
+        FROM classes c
+        JOIN class_type ct ON c.class_type_id = ct.class_type_id
+        LEFT JOIN class_enrollment ce ON c.class_id = ce.class_id
+        GROUP BY c.class_id, ct.class_name, c.scheduled_time, c.capacity
+        ORDER BY total_enrolled DESC
+    """)
+    enrollment_by_class = cursor.fetchall()
+
+    # Monthly payment totals
+    cursor.execute("""
+        SELECT
+            DATE_FORMAT(payment_date, '%Y-%m') AS month,
+            COUNT(payment_id) AS payment_count,
+            SUM(amount) AS total_revenue,
+            SUM(payment_type = 'membership') AS membership_payments,
+            SUM(payment_type = 'class') AS class_payments
+        FROM payments
+        WHERE status = 'completed'
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+        ORDER BY month DESC
+    """)
+    monthly_revenue = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT
+            m.member_id,
+            m.name,
+            m.email,
+            m.status,
+            get_total_payments(m.member_id) AS total_paid,
+            COUNT(p.payment_id) AS payment_count
+        FROM member m
+        LEFT JOIN payments p ON m.member_id = p.member_id AND p.status = 'completed'
+        GROUP BY m.member_id, m.name, m.email, m.status
+        ORDER BY total_paid DESC
+        LIMIT 10
+    """)
+    top_members = cursor.fetchall()
+
+
+    # equipment maintenance frequency
+    cursor.execute("""
+        SELECT
+            e.equipment_name,
+            e.purchase_date,
+            COUNT(m.maintenance_id) AS maintenance_count,
+            MAX(m.maintenance_date) AS last_maintained
+        FROM equipment e
+        LEFT JOIN maintenance m ON e.equipment_id = m.equipment_id
+        GROUP BY e.equipment_id, e.equipment_name, e.purchase_date
+        ORDER BY maintenance_count DESC
+    """)
+    maintenance_frequency = cursor.fetchall()
+
+
+    # Active membership summary
+    cursor.execute("""
+        SELECT
+            ms.membership_name,
+            COUNT(am.member_id) AS active_members
+        FROM active_memberships am
+        JOIN memberships ms ON am.membership_name = ms.membership_name
+        GROUP BY ms.membership_name
+        ORDER BY active_members DESC
+    """)
+    active_membership_summary = cursor.fetchall()
+ 
+    cursor.close()
+
+    return render_template(
+        'reports.html',
+        name='Reports',
+        revenue_by_tier=revenue_by_tier,
+        enrollment_by_class=enrollment_by_class,
+        monthly_revenue=monthly_revenue,
+        top_members=top_members,
+        maintenance_frequency=maintenance_frequency,
+        active_membership_summary=active_membership_summary
+    )
+
 if __name__=="__main__":
     app.run(host="0.0.0.0", debug=True)

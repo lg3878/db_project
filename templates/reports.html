@@ -1,0 +1,185 @@
+{% extends 'layout.html' %}
+{% block content %}
+<h1>Reports</h1>
+ 
+<!-- ================================================
+  1. Revenue by Membership Tier
+================================================ -->
+<h2>Revenue by Membership Tier</h2>
+{% if revenue_by_tier %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Membership Tier</th>
+            <th>Payments</th>
+            <th>Total Revenue</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in revenue_by_tier %}
+        <tr>
+            <td>{{ row.membership_name }}</td>
+            <td>{{ row.payment_count }}</td>
+            <td>${{ "%.2f"|format(row.total_revenue) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No payment data available.</p>
+{% endif %}
+ 
+<!-- ================================================
+  2. Active Members per Membership Tier
+================================================ -->
+<h2>Active Members by Membership Tier</h2>
+{% if active_membership_summary %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Membership Tier</th>
+            <th>Active Members</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in active_membership_summary %}
+        <tr>
+            <td>{{ row.membership_name }}</td>
+            <td>{{ row.active_members }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No active memberships found.</p>
+{% endif %}
+ 
+<!-- ================================================
+  3. Monthly Revenue
+================================================ -->
+<h2>Monthly Revenue</h2>
+{% if monthly_revenue %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Month</th>
+            <th>Total Revenue</th>
+            <th>Total Payments</th>
+            <th>Membership Payments</th>
+            <th>Class Payments</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in monthly_revenue %}
+        <tr>
+            <td>{{ row.month }}</td>
+            <td>${{ "%.2f"|format(row.total_revenue) }}</td>
+            <td>{{ row.payment_count }}</td>
+            <td>{{ row.membership_payments }}</td>
+            <td>{{ row.class_payments }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No payment data available.</p>
+{% endif %}
+ 
+<!-- ================================================
+  4. Class Enrollment & Attendance Breakdown
+================================================ -->
+<h2>Class Enrollment & Attendance</h2>
+{% if enrollment_by_class %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Class</th>
+            <th>Scheduled Time</th>
+            <th>Capacity</th>
+            <th>Enrolled</th>
+            <th>Attended</th>
+            <th>Missed</th>
+            <th>Cancelled</th>
+            <th>Registered</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in enrollment_by_class %}
+        <tr>
+            <td>{{ row.class_name }}</td>
+            <td>{{ row.scheduled_time }}</td>
+            <td>{{ row.capacity }}</td>
+            <td>{{ row.total_enrolled }}</td>
+            <td>{{ row.attended }}</td>
+            <td>{{ row.missed }}</td>
+            <td>{{ row.cancelled }}</td>
+            <td>{{ row.registered }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No class data available.</p>
+{% endif %}
+ 
+<!-- ================================================
+  5. Top 10 Members by Total Payments
+================================================ -->
+<h2>Top 10 Members by Total Payments</h2>
+{% if top_members %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Member</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Payments Made</th>
+            <th>Total Paid</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in top_members %}
+        <tr>
+            <td><a href="/member_page/{{ row.member_id }}">{{ row.name }}</a></td>
+            <td>{{ row.email }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.payment_count }}</td>
+            <td>${{ "%.2f"|format(row.total_paid) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No member payment data available.</p>
+{% endif %}
+ 
+<!-- ================================================
+  6. Equipment Maintenance Frequency
+================================================ -->
+<h2>Equipment Maintenance Frequency</h2>
+{% if maintenance_frequency %}
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>Equipment</th>
+            <th>Purchase Date</th>
+            <th>Maintenance Count</th>
+            <th>Last Maintained</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in maintenance_frequency %}
+        <tr>
+            <td>{{ row.equipment_name }}</td>
+            <td>{{ row.purchase_date }}</td>
+            <td>{{ row.maintenance_count }}</td>
+            <td>{{ row.last_maintained if row.last_maintained else 'Never' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No equipment data available.</p>
+{% endif %}
+ 
+{% endblock %}

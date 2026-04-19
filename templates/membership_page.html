@@ -11,8 +11,6 @@
     <p><strong>Price:</strong> ${{ ms.price }}</p>
     <p><strong>Duration:</strong> {{ ms.duration_months }} month(s)</p>
 
-    <a href="/edit_membership/{{ ms.membership_id }}">Edit Membership</a>
-    <a href="/delete_membership/{{ ms.membership_id }}">Delete Membership</a>
 
     <h2>Enrolled Members</h2>
 
@@ -42,7 +40,15 @@
     {% else %}
         <p>No members currently enrolled in this tier.</p>
     {% endif %}
+    
 
+    <br>
+    <br>
+    <h2>Actions</h2>
+    <ul>
+    <li><a href="/edit_membership/{{ ms.membership_id }}">Edit Membership</a></li>
+    <li><a href="/delete_membership/{{ ms.membership_id }}">Delete Membership</a></li>
+    </ul>
     <br>
     <a href="/memberships">Back to Memberships</a>
 
