@@ -6,31 +6,28 @@ import os
 from mysql.connector import Error
 
 load_dotenv()
-DB_USERNAME = os.getenv("DB_USERNAME")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 app = Flask(__name__)
 CORS(app)
 
-db = mysql.connector.connect(
-    host="localhost",
-    user=DB_USERNAME,
-    password=DB_PASSWORD,
-    database="mydb"
-)
 
+def get_db():
+    global db
+    try:
+        db.ping(reconnect=True, attempts=3, delay=2)
+    except Error:
+        db = mysql.connector.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            user=os.getenv("DB_USERNAME"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME", "mydb")
+        )
+    return db
 
-
-def get_all_members():
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM member")
-    result = cursor.fetchall()
-    cursor.close()
-    return result
 
 # using is_member_active
 def get_all_members(active_only=False):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     if active_only:
         cursor.execute("""
             SELECT * FROM member
@@ -57,7 +54,7 @@ def members():
 
 @app.route('/add_member', methods=['GET','POST'])
 def add_member():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
@@ -65,7 +62,7 @@ def add_member():
 
         query = "INSERT INTO member(name, email, phone) VALUES (%s, %s, %s)"
         cursor.execute(query, (name, email,phone))
-        db.commit()
+        get_db().commit()
 
     
         member_id = cursor.lastrowid
@@ -77,7 +74,7 @@ def add_member():
 
 @app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
 def edit_member(member_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
@@ -89,7 +86,7 @@ def edit_member(member_id):
                 WHERE member_id = %s
                 """
         cursor.execute(query, (name, email,phone, member_id))
-        db.commit()
+        get_db().commit()
         cursor.close()
         return redirect('/members')
     
@@ -101,7 +98,7 @@ def edit_member(member_id):
 
 @app.route('/delete_member/<int:member_id>')
 def delete_member(member_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         # delete payments related to member
         cursor.execute("""
@@ -120,7 +117,7 @@ def delete_member(member_id):
 
         # delete member
         cursor.execute("DELETE FROM member WHERE member_id = %s", (member_id,))
-        db.commit()
+        get_db().commit()
     except Exception as e:
         cursor.close()
         return f"Cannot delete member. <a href='/members'>Go Back</a>"
@@ -129,7 +126,7 @@ def delete_member(member_id):
 
 # utilizing active_membership view
 def get_member_page_data(member_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     # Core membership rows from the view
     cursor.execute("""
@@ -203,7 +200,7 @@ def member_page(member_id):
         return "Member not found <a href='/members'>Go back</a>"
     
     #Get total payments for this member
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     cursor.execute("SELECT get_total_payments(%s) AS total_paid", (member_id,))
     total_paid = cursor.fetchone()['total_paid']
@@ -214,7 +211,7 @@ def member_page(member_id):
 
 @app.route('/assign_membership/<int:member_id>', methods=['GET', 'POST'])
 def assign_membership(member_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     if request.method == 'POST':
         membership_id = request.form.get('membership_id')
         start_date = request.form.get('start_date')
@@ -246,7 +243,7 @@ def assign_membership(member_id):
             VALUES (%s, %s, %s, DATE_ADD(%s, INTERVAL %s MONTH))
             """
             cursor.execute(query, (member_id, membership_id, start_date, start_date, duration))
-            db.commit()
+            get_db().commit()
         except Error as e:
             cursor.close()
             return f"Error: {str(e)} <a href='/members'>Go back</a>"
@@ -261,7 +258,7 @@ def assign_membership(member_id):
 
 @app.route('/deactivate_member/<int:member_id>')
 def deactivate_member(member_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     # end active membership
     cursor.execute("""
         UPDATE member_membership SET end_date = CURDATE()
@@ -276,21 +273,21 @@ def deactivate_member(member_id):
     WHERE member_id = %s
     """, (member_id,))
     
-    db.commit()
+    get_db().commit()
     cursor.close()
     return redirect('/members')
 
 
 @app.route('/activate_member/<int:member_id>')
 def activate_member(member_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     cursor.execute("""
         UPDATE member
         SET status = 'Active'
         WHERE member_id = %s
     """, (member_id,))
     
-    db.commit()
+    get_db().commit()
     cursor.close()
     return redirect(f'/assign_membership/{member_id}')
 
@@ -300,7 +297,7 @@ Memberships table
 """
 
 def get_memberships():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     cursor.execute("SELECT * FROM memberships")
     result = cursor.fetchall()
     cursor.close()
@@ -314,7 +311,7 @@ def memberships():
 
 @app.route('/add_membership', methods=['GET', 'POST'])
 def add_membership():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     if request.method == 'POST':
         membership_name = request.form.get('membership_name')
@@ -327,11 +324,11 @@ def add_membership():
                 VALUES (%s, %s, %s)
             """
             cursor.execute(query, (membership_name, price, duration_months))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/memberships')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error adding membership: {str(e)} <a href='/add_membership'>Go back</a>"
 
@@ -341,7 +338,7 @@ def add_membership():
 
 @app.route('/edit_membership/<int:membership_id>', methods=['GET', 'POST'])
 def edit_membership(membership_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     if request.method == 'POST':
         membership_name = request.form.get('membership_name')
@@ -355,11 +352,11 @@ def edit_membership(membership_id):
             """
             cursor.execute(query, (membership_name, price, duration_months, membership_id))
 
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/memberships')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error updating membership: {str(e)} <a href='/edit_membership/{membership_id}'>Go back</a>"
     cursor.execute("SELECT * FROM memberships WHERE membership_id = %s", (membership_id,))
@@ -374,7 +371,7 @@ def edit_membership(membership_id):
 
 @app.route('/membership_page/<int:membership_id>')
 def membership_page(membership_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     query = """
     SELECT
@@ -402,7 +399,7 @@ def membership_page(membership_id):
         return render_template('membership_page.html', rows=rows)
 
     # membership exists but has no enrolled members
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     cursor.execute("SELECT * FROM memberships WHERE membership_id = %s", (membership_id,))
     membership = cursor.fetchone()
     cursor.close()
@@ -415,7 +412,7 @@ def membership_page(membership_id):
 
 @app.route('/delete_membership/<int:membership_id>')
 def delete_membership(membership_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         # get all member_membership_ids for this tier
         cursor.execute("""
@@ -441,9 +438,9 @@ def delete_membership(membership_id):
 
         # delete the membership tier itself
         cursor.execute("DELETE FROM memberships WHERE membership_id = %s", (membership_id,))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deleting membership: {str(e)} <a href='/memberships'>Go back</a>"
 
@@ -457,7 +454,7 @@ staff table
 """
 
 def get_staff():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     cursor.execute("SELECT * FROM staff")
     result = cursor.fetchall()
     cursor.close()
@@ -471,7 +468,7 @@ def staff():
 
 @app.route('/add_staff', methods=['GET', 'POST'])
 def add_staff():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -497,11 +494,11 @@ def add_staff():
                     VALUES (%s, %s)
                 """, (staff_id, certification or None))
 
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/staff')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error adding staff: {str(e)} <a href='/add_staff'>Go back</a>"
 
@@ -511,7 +508,7 @@ def add_staff():
         
 @app.route('/staff_page/<int:staff_id>')
 def staff_page(staff_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     query = """
     SELECT
@@ -548,7 +545,7 @@ def staff_page(staff_id):
 
 @app.route('/edit_staff/<int:staff_id>', methods=['GET', 'POST'])
 def edit_staff(staff_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -592,11 +589,11 @@ def edit_staff(staff_id):
 
                 cursor.execute("DELETE FROM trainers WHERE staff_id = %s", (staff_id,))
 
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect(f'/staff_page/{staff_id}')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error updating staff: {str(e)} <a href='/edit_staff/{staff_id}'>Go back</a>"
 
@@ -615,7 +612,7 @@ def edit_staff(staff_id):
 
 @app.route('/deactivate_staff/<int:staff_id>')
 def deactivate_staff(staff_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         last_day = request.args.get('last_day')
         query = """
@@ -624,9 +621,9 @@ def deactivate_staff(staff_id):
             WHERE staff_id = %s
         """
         cursor.execute(query, (last_day, staff_id))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deactivating staff: {str(e)} <a href='/staff'>Go back</a>"
 
@@ -636,7 +633,7 @@ def deactivate_staff(staff_id):
 
 @app.route('/activate_staff/<int:staff_id>')
 def activate_staff(staff_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         query = """
             UPDATE staff
@@ -644,9 +641,9 @@ def activate_staff(staff_id):
             WHERE staff_id = %s
         """
         cursor.execute(query, (staff_id,))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error activating staff: {str(e)} <a href='/staff'>Go back</a>"
 
@@ -656,7 +653,7 @@ def activate_staff(staff_id):
 
 @app.route('/delete_staff/<int:staff_id>')
 def delete_staff(staff_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         # delete maintenance records assigned to this staff member
         cursor.execute("""
@@ -698,9 +695,9 @@ def delete_staff(staff_id):
 
         # delete staff member
         cursor.execute("DELETE FROM staff WHERE staff_id = %s", (staff_id,))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deleting staff member: {str(e)} <a href='/staff'>Go back</a>"
 
@@ -717,7 +714,7 @@ Create is done in staff functions above
 
 
 def get_trainers():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     query = """
         SELECT
             s.staff_id,
@@ -749,7 +746,7 @@ Classes table
 """
 
 def get_classes():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     query = """
         SELECT
             c.class_id,
@@ -781,7 +778,7 @@ def classes():
 
 @app.route('/add_class', methods=['GET', 'POST'])
 def add_class():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     if request.method == 'POST':
         class_type_id = request.form.get('class_type_id')
@@ -795,11 +792,11 @@ def add_class():
                 INSERT INTO classes (class_type_id, trainers_staff_id, scheduled_time, duration_minutes, capacity)
                 VALUES (%s, %s, %s, %s, %s)
             """, (class_type_id, trainer_id, scheduled_time, duration_minutes, capacity))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/classes')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error adding class: {str(e)} <a href='/add_class'>Go back</a>"
 
@@ -821,7 +818,7 @@ def add_class():
 
 @app.route('/class_page/<int:class_id>')
 def class_page(class_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     query = """
         SELECT
             c.class_id,
@@ -862,7 +859,7 @@ def class_page(class_id):
 
 @app.route('/edit_class/<int:class_id>', methods=['GET', 'POST'])
 def edit_class(class_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     if request.method == 'POST':
         class_type_id = request.form.get('class_type_id')
@@ -878,11 +875,11 @@ def edit_class(class_id):
                     scheduled_time = %s, duration_minutes = %s, capacity = %s
                 WHERE class_id = %s
             """, (class_type_id, trainer_id, scheduled_time, duration_minutes, capacity, class_id))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect(f'/class_page/{class_id}')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error updating class: {str(e)} <a href='/edit_class/{class_id}'>Go back</a>"
 
@@ -912,7 +909,7 @@ def edit_class(class_id):
 
 @app.route('/delete_class/<int:class_id>')
 def delete_class(class_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         # delete payments tied to class enrollments
         cursor.execute("""
@@ -926,9 +923,9 @@ def delete_class(class_id):
 
         # delete class
         cursor.execute("DELETE FROM classes WHERE class_id = %s", (class_id,))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deleting class: {str(e)} <a href='/classes'>Go back</a>"
 
@@ -943,7 +940,7 @@ Class Type table
 """
 
 def get_class_types():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     cursor.execute("SELECT * FROM class_type")
     result = cursor.fetchall()
     cursor.close()
@@ -958,7 +955,7 @@ def class_types():
 
 @app.route('/add_class_type', methods=['GET', 'POST'])
 def add_class_type():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     if request.method == 'POST':
         class_name = request.form.get('class_name')
@@ -969,11 +966,11 @@ def add_class_type():
                 INSERT INTO class_type (class_name, difficulty_level)
                 VALUES (%s, %s)
             """, (class_name, difficulty_level))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/class_types')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error adding class type: {str(e)} <a href='/add_class_type'>Go back</a>"
 
@@ -983,7 +980,7 @@ def add_class_type():
 
 @app.route('/edit_class_type/<int:class_type_id>', methods=['GET', 'POST'])
 def edit_class_type(class_type_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         class_name = request.form.get('class_name')
@@ -995,11 +992,11 @@ def edit_class_type(class_type_id):
                 SET class_name = %s, difficulty_level = %s
                 WHERE class_type_id = %s
             """, (class_name, difficulty_level, class_type_id))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/class_types')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error updating class type: {str(e)} <a href='/edit_class_type/{class_type_id}'>Go back</a>"
  
@@ -1015,7 +1012,7 @@ def edit_class_type(class_type_id):
  
 @app.route('/delete_class_type/<int:class_type_id>')
 def delete_class_type(class_type_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         # Get all class_ids that use this type
         cursor.execute("SELECT class_id FROM classes WHERE class_type_id = %s", (class_type_id,))
@@ -1044,9 +1041,9 @@ def delete_class_type(class_type_id):
  
         # Delete the class type
         cursor.execute("DELETE FROM class_type WHERE class_type_id = %s", (class_type_id,))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deleting class type: {str(e)} <a href='/class_types'>Go back</a>"
  
@@ -1061,7 +1058,7 @@ Equipment
 
 
 def get_equipment():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     cursor.execute("SELECT * FROM equipment ORDER BY equipment_name")
     result = cursor.fetchall()
     cursor.close()
@@ -1076,7 +1073,7 @@ def equipment():
 
 @app.route('/add_equipment', methods=['GET', 'POST'])
 def add_equipment():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         equipment_name = request.form.get('equipment_name')
@@ -1087,11 +1084,11 @@ def add_equipment():
                 INSERT INTO equipment (equipment_name, purchase_date)
                 VALUES (%s, %s)
             """, (equipment_name, purchase_date))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/equipment')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error adding equipment: {str(e)} <a href='/add_equipment'>Go back</a>"
  
@@ -1101,7 +1098,7 @@ def add_equipment():
  
 @app.route('/edit_equipment/<int:equipment_id>', methods=['GET', 'POST'])
 def edit_equipment(equipment_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         equipment_name = request.form.get('equipment_name')
@@ -1113,11 +1110,11 @@ def edit_equipment(equipment_id):
                 SET equipment_name = %s, purchase_date = %s
                 WHERE equipment_id = %s
             """, (equipment_name, purchase_date, equipment_id))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/equipment')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error updating equipment: {str(e)} <a href='/edit_equipment/{equipment_id}'>Go back</a>"
  
@@ -1133,7 +1130,7 @@ def edit_equipment(equipment_id):
  
 @app.route('/equipment_page/<int:equipment_id>')
 def equipment_page(equipment_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     # Fetch equipment details along with its maintenance history
     query = """
@@ -1164,16 +1161,16 @@ def equipment_page(equipment_id):
  
 @app.route('/delete_equipment/<int:equipment_id>')
 def delete_equipment(equipment_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         # Delete maintenance records first (FK dependency)
         cursor.execute("DELETE FROM maintenance WHERE equipment_id = %s", (equipment_id,))
  
         # Delete equipment
         cursor.execute("DELETE FROM equipment WHERE equipment_id = %s", (equipment_id,))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deleting equipment: {str(e)} <a href='/equipment'>Go back</a>"
  
@@ -1189,7 +1186,7 @@ PAYMENT_METHODS = ['card', 'cash', 'bank transfer', 'check', 'online'] # for dro
  
  
 def get_all_payments():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     # Uses the View: member_payment_details 
     cursor.execute("""
         SELECT *
@@ -1221,7 +1218,7 @@ def payments():
 
 @app.route('/add_payment', methods=['GET', 'POST'])
 def add_payment():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         member_id = request.form.get('member_id')
@@ -1249,11 +1246,11 @@ def add_payment():
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (member_id, amount, payment_date, payment_method, status,
                   payment_type, member_membership_id, class_enrollment_id))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/payments')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error adding payment: {str(e)} <a href='/add_payment'>Go back</a>"
  
@@ -1274,7 +1271,7 @@ def add_payment():
 @app.route('/get_member_payment_targets/<int:member_id>')
 def get_member_payment_targets(member_id):
     """AJAX endpoint: returns active memberships and class enrollments for a member."""
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     cursor.execute("""
         SELECT mm.member_membership_id, ms.membership_name, mm.start_date, mm.end_date
@@ -1310,7 +1307,7 @@ def get_member_payment_targets(member_id):
  
 @app.route('/edit_payment/<int:payment_id>', methods=['GET', 'POST'])
 def edit_payment(payment_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         payment_method = request.form.get('payment_method')
@@ -1326,11 +1323,11 @@ def edit_payment(payment_id):
                 SET amount = %s, payment_date = %s, payment_method = %s, status = %s
                 WHERE payment_id = %s
             """, (amount, payment_date, payment_method, status, payment_id))
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect('/payments')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error updating payment: {str(e)} <a href='/edit_payment/{payment_id}'>Go back</a>"
  
@@ -1352,12 +1349,12 @@ def edit_payment(payment_id):
  
 @app.route('/delete_payment/<int:payment_id>')
 def delete_payment(payment_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         cursor.execute("DELETE FROM payments WHERE payment_id = %s", (payment_id,))
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deleting payment: {str(e)} <a href='/payments'>Go back</a>"
  
@@ -1368,7 +1365,7 @@ def delete_payment(payment_id):
 #calling the add_membership_payment function
 @app.route('/record_membership_payment/<int:member_id>', methods=['GET', 'POST'])
 def record_membership_payment(member_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         membership_id = request.form.get('membership_id')
@@ -1376,11 +1373,11 @@ def record_membership_payment(member_id):
  
         try:
             cursor.callproc('add_membership_payment', [member_id, membership_id, amount])
-            db.commit()
+            get_db().commit()
             cursor.close()
             return redirect(f'/member_page/{member_id}')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error recording payment: {str(e)} <a href='/record_membership_payment/{member_id}'>Go back</a>"
  
@@ -1414,7 +1411,7 @@ Maintenance
 """
 
 def get_all_maintenance():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     query = """
         SELECT
             m.maintenance_id,
@@ -1456,7 +1453,7 @@ def maintenance():
 @app.route('/add_maintenance', methods=['GET', 'POST'])
 @app.route('/add_maintenance/<int:equipment_id>', methods=['GET', 'POST'])
 def add_maintenance(equipment_id=None):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         eq_id = request.form.get('equipment_id')
@@ -1468,7 +1465,7 @@ def add_maintenance(equipment_id=None):
                 INSERT INTO maintenance (equipment_id, staff_id, maintenance_date)
                 VALUES (%s, %s, %s)
             """, (eq_id, staff_id, maintenance_date))
-            db.commit()
+            get_db().commit()
             cursor.close()
             # Return to equipment page if we came from there, otherwise maintenance list
             came_from = request.form.get('came_from')
@@ -1476,7 +1473,7 @@ def add_maintenance(equipment_id=None):
                 return redirect(f'/equipment_page/{eq_id}')
             return redirect('/maintenance')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error logging maintenance: {str(e)} <a href='/add_maintenance'>Go back</a>"
  
@@ -1509,7 +1506,7 @@ Class Enrollment Route
 @app.route('/enroll/class/<int:class_id>', methods=['GET', 'POST'])
 @app.route('/enroll/member/<int:member_id>', methods=['GET', 'POST'])
 def enroll(class_id=None, member_id=None):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         enroll_class_id  = request.form.get('class_id')
@@ -1518,9 +1515,9 @@ def enroll(class_id=None, member_id=None):
  
         try:
             cursor.callproc('enroll_member_in_class', [enroll_member_id, enroll_class_id])
-            db.commit()
+            get_db().commit()
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             # Surface the stored procedure's SIGNAL messages cleanly
             return render_template(
@@ -1619,7 +1616,7 @@ def enroll(class_id=None, member_id=None):
 
 @app.route('/edit_enrollment/<int:class_enrollment_id>', methods=['GET', 'POST'])
 def edit_enrollment(class_enrollment_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
  
     if request.method == 'POST':
         attendance_status = request.form.get('attendance_status')
@@ -1631,13 +1628,13 @@ def edit_enrollment(class_enrollment_id):
                 SET attendance_status = %s
                 WHERE class_enrollment_id = %s
             """, (attendance_status, class_enrollment_id))
-            db.commit()
+            get_db().commit()
             cursor.close()
             if came_from_class:
                 return redirect(f'/class_page/{came_from_class}')
             return redirect('/classes')
         except Error as e:
-            db.rollback()
+            get_db().rollback()
             cursor.close()
             return f"Error updating enrollment: {str(e)} <a href='/edit_enrollment/{class_enrollment_id}'>Go back</a>"
  
@@ -1673,7 +1670,7 @@ def edit_enrollment(class_enrollment_id):
  
 @app.route('/delete_enrollment/<int:class_enrollment_id>')
 def delete_enrollment(class_enrollment_id):
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
     try:
         # Get class_id before deleting for redirect
         cursor.execute("""
@@ -1695,9 +1692,9 @@ def delete_enrollment(class_enrollment_id):
             WHERE class_enrollment_id = %s
         """, (class_enrollment_id,))
  
-        db.commit()
+        get_db().commit()
     except Error as e:
-        db.rollback()
+        get_db().rollback()
         cursor.close()
         return f"Error deleting enrollment: {str(e)} <a href='/classes'>Go back</a>"
  
@@ -1712,7 +1709,7 @@ Reports
 
 @app.route('/reports')
 def reports():
-    cursor = db.cursor(dictionary=True)
+    cursor = get_db().cursor(dictionary=True)
 
     # Total Revenue by membership tier
     cursor.execute("""
@@ -1821,4 +1818,5 @@ def reports():
     )
 
 if __name__=="__main__":
-    app.run(host="0.0.0.0", debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
