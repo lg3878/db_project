@@ -10,10 +10,13 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+db = None
 
 def get_db():
     global db
     try:
+        if db is None:
+            raise Error("No connection yet")
         db.ping(reconnect=True, attempts=3, delay=2)
     except Error:
         db = mysql.connector.connect(
