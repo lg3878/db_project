@@ -4,6 +4,7 @@
 <h1>Memberships</h1>
 
 <div class="table-container">
+    {% if rows and rows|length > 0 %}
     <table>
         <thead>
             <tr>
@@ -26,6 +27,9 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <p>No memberships found.</p>
+    {% endif %}
 </div>
 
 <a href="/add_membership">Add a Membership</a>
