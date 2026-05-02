@@ -181,5 +181,33 @@
 {% else %}
 <p>No equipment data available.</p>
 {% endif %}
+
+{% if enrollment_summary %}
+<h2>Class Enrollment Summary</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Class</th>
+            <th>Scheduled Time</th>
+            <th>Capacity</th>
+            <th>Enrolled</th>
+            <th>Spots Remaining</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in enrollment_summary %}
+        <tr>
+            <td>{{ row.class_name }}</td>
+            <td>{{ row.scheduled_time }}</td>
+            <td>{{ row.capacity }}</td>
+            <td>{{ row.enrolled_count }}</td>
+            <td>{{ row.spots_remaining }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No enrollment data available.</p>
+{% endif %}
  
 {% endblock %}

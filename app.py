@@ -1806,7 +1806,14 @@ def reports():
         ORDER BY active_members DESC
     """)
     active_membership_summary = cursor.fetchall()
- 
+    
+    # enrollment summary
+    cursor.execute("""
+        SELECT *
+        FROM class_enrollment_summary
+        ORDER BY spots_remaining ASC
+    """)
+    enrollment_summary = cursor.fetchall()
     cursor.close()
 
     return render_template(
@@ -1817,7 +1824,8 @@ def reports():
         monthly_revenue=monthly_revenue,
         top_members=top_members,
         maintenance_frequency=maintenance_frequency,
-        active_membership_summary=active_membership_summary
+        active_membership_summary=active_membership_summary,
+        enrollment_summary=enrollment_summary
     )
 
 if __name__=="__main__":
